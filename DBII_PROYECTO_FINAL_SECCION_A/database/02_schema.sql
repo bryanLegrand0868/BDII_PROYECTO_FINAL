@@ -465,7 +465,7 @@ COMMENT ON TABLE VW_PENDING_SCRIPTS IS 'Scripts DCL generados que aún no han si
 INSERT INTO APP_USERS (username, password_hash, email, full_name, app_role, status)
 VALUES (
     'superadmin',
-    '$2b$12$CHANGE_THIS_HASH_IN_PRODUCTION',   -- reemplazar con hash real
+    ''$2a$10$8B3bVwdO/Y17.9qle6acVedICFy8tkF28KR82UF79FA0GdFssMDjq',   -- reemplazar con hash real
     'admin@dcl-manager.local',
     'Administrador Principal',
     'SUPERADMIN',
