@@ -1,0 +1,68 @@
+<div class="login-container">
+  <div class="login-card">
+    
+    <div class="login-logo">
+      <div class="logo-icon">
+        <i class="bi bi-database-lock"></i>
+      </div>
+      <h2>DCL Manager</h2>
+      <p>Gestión de Privilegios Oracle</p>
+    </div>
+
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+      <div class="form-group">
+        <label><i class="bi bi-person me-1"></i> Usuario</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-person"></i></span>
+          <input type="text" 
+                 class="form-control" 
+                 formControlName="username" 
+                 placeholder="superadmin"
+                 [class.is-invalid]="loginForm.get('username')?.invalid && loginForm.get('username')?.touched">
+        </div>
+        <div class="invalid-feedback" *ngIf="loginForm.get('username')?.touched && loginForm.get('username')?.hasError('required')">
+          El usuario es requerido
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label><i class="bi bi-lock me-1"></i> Contraseña</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-key"></i></span>
+          <input [type]="showPassword ? 'text' : 'password'" 
+                 class="form-control" 
+                 formControlName="password" 
+                 placeholder="••••••"
+                 [class.is-invalid]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
+          <button class="btn btn-outline-secondary" type="button" (click)="togglePassword()">
+            <i [class]="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+          </button>
+        </div>
+        <div class="invalid-feedback" *ngIf="loginForm.get('password')?.touched && loginForm.get('password')?.hasError('required')">
+          La contraseña es requerida
+        </div>
+        <div class="invalid-feedback" *ngIf="loginForm.get('password')?.touched && loginForm.get('password')?.hasError('minlength')">
+          Mínimo 6 caracteres
+        </div>
+      </div>
+
+      <div class="alert alert-danger" *ngIf="errorMessage">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ errorMessage }}
+      </div>
+
+      <button type="submit" class="btn btn-login" [disabled]="loginForm.invalid || loading">
+        <span *ngIf="!loading">
+          <i class="bi bi-box-arrow-in-right me-2"></i>Iniciar Sesión
+        </span>
+        <span *ngIf="loading">
+          <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+        </span>
+      </button>
+    </form>
+
+    <div class="login-footer">
+      <small><i class="bi bi-info-circle me-1"></i>Demo: superadmin / admin123</small>
+    </div>
+    
+  </div>
+</div>

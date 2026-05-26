@@ -1,0 +1,172 @@
+    /* Fondo general */
+.container-fluid {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+/* Tarjeta principal */
+.dashboard-card {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  animation: fadeInUp 0.5s ease-out;
+}
+
+/* Header con gradiente */
+.dashboard-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 1.5rem;
+  color: white;
+}
+
+.dashboard-header h2 {
+  margin: 0;
+  font-weight: 600;
+}
+
+.dashboard-header p {
+  margin: 0;
+  opacity: 0.9;
+}
+
+/* Perfil card */
+.profile-card {
+  background: #f8f9fa;
+  border-radius: 15px;
+  padding: 1.5rem;
+  margin: 1.5rem;
+  border: none;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s ease;
+}
+
+.profile-card:hover {
+  transform: translateY(-3px);
+}
+
+.profile-icon {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.profile-icon i {
+  font-size: 2rem;
+  color: white;
+}
+
+.profile-info p {
+  margin-bottom: 0.5rem;
+}
+
+.profile-info strong {
+  color: #333;
+  width: 120px;
+  display: inline-block;
+}
+
+/* Cards de navegación */
+.nav-card {
+  background: white;
+  border: none;
+  border-radius: 15px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  height: 100%;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+}
+
+.nav-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+}
+
+.nav-card .card-body {
+  padding: 1.5rem;
+}
+
+.nav-card i {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  transition: transform 0.3s ease;
+}
+
+.nav-card:hover i {
+  transform: scale(1.1);
+}
+
+.nav-card h5 {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.nav-card p {
+  color: #666;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+/* Colores de íconos */
+.nav-card.users i { color: #3b82f6; }
+.nav-card.roles i { color: #10b981; }
+.nav-card.permissions i { color: #f59e0b; }
+.nav-card.audit i { color: #8b5cf6; }
+
+/* Botón logout */
+.btn-logout {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 24px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.btn-logout:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+}
+
+/* Animaciones */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Badges */
+.badge {
+  padding: 5px 12px;
+  font-weight: 500;
+  border-radius: 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .container-fluid {
+    padding: 1rem;
+  }
+  
+  .profile-info strong {
+    width: 100%;
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+  
+  .profile-card {
+    margin: 1rem;
+  }
+}

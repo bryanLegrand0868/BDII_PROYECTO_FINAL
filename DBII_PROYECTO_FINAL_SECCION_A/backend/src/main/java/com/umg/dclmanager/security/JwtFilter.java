@@ -38,11 +38,15 @@ public class JwtFilter extends OncePerRequestFilter {
             try {
                 Claims claims = jwt.claims(header.substring(7));
 
+                String username = claims.getSubject();
                 String role = String.valueOf(claims.get("appRole"));
+                
+                // 👇 AGREGAR ESTA LÍNEA - Guarda el username en el request
+                req.setAttribute("username", username);
 
                 UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken(
-                                claims.getSubject(),
+                                username,
                                 null,
                                 List.of(new SimpleGrantedAuthority("ROLE_" + role))
                         );

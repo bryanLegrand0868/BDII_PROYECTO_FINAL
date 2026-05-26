@@ -1,0 +1,363 @@
+/* Contenedor principal */
+.permissions-container {
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+/* Título */
+.page-title {
+  color: #1a2a3a;
+  font-weight: 700;
+  position: relative;
+  display: inline-block;
+}
+
+.page-title::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 60px;
+  height: 4px;
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+  border-radius: 2px;
+}
+
+/* Tarjetas */
+.card-glass {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: none;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: transform 0.3s ease;
+}
+
+.card-glass:hover {
+  transform: translateY(-3px);
+}
+
+/* Header de tarjetas */
+.card-header-custom {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 15px 20px;
+  border: none;
+  font-weight: 600;
+}
+
+.card-header-roles {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.card-header-permisos {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+/* Lista de roles */
+.roles-list {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.role-item {
+  padding: 12px 15px;
+  border-bottom: 1px solid #eef2f6;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin: 0;
+  border-radius: 0;
+}
+
+.role-item:hover {
+  background-color: #f8f9ff;
+  transform: translateX(5px);
+}
+
+.role-item.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.role-item.active small {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.role-name {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.role-description {
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.role-item.active .role-description {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Tabla de permisos */
+.permissions-table {
+  margin-bottom: 0;
+}
+
+.permissions-table thead th {
+  background: #f8f9fa;
+  color: #2d3e50;
+  font-weight: 600;
+  padding: 12px 15px;
+  border-bottom: 2px solid #e5e7eb;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.permissions-table tbody td {
+  padding: 12px 15px;
+  vertical-align: middle;
+  border-bottom: 1px solid #eef2f6;
+  color: #2d3e50;
+}
+
+.permissions-table tbody tr:hover {
+  background-color: #f8f9ff;
+}
+
+/* Badges de privilegios */
+.privilege-badge {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.privilege-select {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.privilege-insert {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.privilege-update {
+  background: #fed7aa;
+  color: #9a3412;
+}
+
+.privilege-delete {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.privilege-execute {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+
+.privilege-all {
+  background: #f3e8ff;
+  color: #6b21a5;
+}
+
+/* Botón GRANT */
+.btn-grant {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  border-radius: 12px;
+  padding: 8px 20px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  color: white;
+}
+
+.btn-grant:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  color: white;
+}
+
+.btn-grant:disabled {
+  opacity: 0.6;
+  transform: none;
+}
+
+/* Botón REVOKE */
+.btn-revoke {
+  background: #fee2e2;
+  color: #dc2626;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-revoke:hover {
+  background: #dc2626;
+  color: white;
+  transform: scale(1.05);
+}
+
+/* Modal */
+.modal-content-custom {
+  border-radius: 20px;
+  border: none;
+  overflow: hidden;
+}
+
+.modal-header-custom {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  padding: 20px 25px;
+  border: none;
+}
+
+.modal-header-custom .btn-close {
+  filter: brightness(0) invert(1);
+}
+
+.modal-body-custom {
+  padding: 25px;
+}
+
+.modal-footer-custom {
+  padding: 15px 25px;
+  background: #f8f9fa;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* Formulario en modal */
+.form-label-custom {
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+}
+
+.form-control-custom, .form-select-custom {
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 15px;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.form-control-custom:focus, .form-select-custom:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  outline: none;
+}
+
+/* Checkbox personalizado */
+.form-check-input:checked {
+  background-color: #10b981;
+  border-color: #10b981;
+}
+
+/* Mensaje vacío */
+.empty-message {
+  text-align: center;
+  padding: 40px;
+  color: #6c757d;
+}
+
+.empty-message i {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+/* Loading */
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+.loading-spinner .spinner-border {
+  width: 3rem;
+  height: 3rem;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* Scroll personalizado */
+.roles-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.roles-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.roles-list::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 10px;
+}
+
+.roles-list::-webkit-scrollbar-thumb:hover {
+  background: #764ba2;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .permissions-container {
+    padding: 1rem;
+  }
+  
+  .roles-list {
+    max-height: 300px;
+    margin-bottom: 20px;
+  }
+  
+  .permissions-table thead {
+    display: none;
+  }
+  
+  .permissions-table tbody tr {
+    display: block;
+    margin-bottom: 15px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 10px;
+  }
+  
+  .permissions-table tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: none;
+    padding: 8px 10px;
+  }
+  
+  .permissions-table tbody td:before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #667eea;
+  }
+}

@@ -1,0 +1,135 @@
+<div class="roles-container">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="page-title">
+      <i class="bi bi-tags-fill me-2"></i>Gestión de Roles
+    </h2>
+    <button class="btn btn-primary-custom" (click)="openModal()">
+      <i class="bi bi-plus-circle me-2"></i>Nuevo Rol
+    </button>
+  </div>
+
+  <div class="card card-glass fade-in">
+    <div class="card-body p-0">
+      <!-- Mensaje de carga -->
+      <div *ngIf="loading" class="loading-spinner">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+        <p class="mt-3 mb-0">Cargando roles...</p>
+      </div>
+
+      <!-- Mensaje cuando no hay roles -->
+      <div *ngIf="!loading && roles.length === 0" class="empty-message">
+        <i class="bi bi-inbox"></i>
+        <p class="mb-0">No hay roles registrados.</p>
+        <small class="text-muted">Haz clic en "Nuevo Rol" para crear tu primer rol</small>
+      </div>
+
+      <!-- Tabla de roles -->
+      <div *ngIf="!loading && roles.length > 0" class="table-responsive">
+        <div class="table-header-info">
+          <i class="bi bi-info-circle me-1"></i> Total de roles: {{ roles.length }}
+        </div>
+        <table class="table roles-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nombre del Rol</th>
+              <th>Descripción</th>
+              <th>Rol Padre</th>
+              <th>Tipo</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let role of roles">
+              <td data-label="ID">
+                <span class="role-id">{{ role.ROLE_ID }}</span>
+              </td>
+              <td data-label="Nombre">
+                <strong><i class="bi bi-tag me-1"></i>{{ role.ROLE_NAME }}</strong>
+              </td>
+              <td data-label="Descripción">{{ role.DESCRIPTION || '-' }}</td>
+              <td data-label="Rol Padre">
+                <span *ngIf="getParentName(role.PARENT_ROLE_ID); else noParent">
+                  <i class="bi bi-diagram-2 me-1"></i>{{ getParentName(role.PARENT_ROLE_ID) }}
+                </span>
+                <ng-template #noParent>
+                  <span class="text-muted">— Sin padre —</span>
+                </ng-template>
+              </td>
+              <td data-label="Tipo">
+                <span class="badge" [class.badge-oracle]="role.IS_ORACLE_ROLE === 'S'" 
+                      [class.badge-app]="role.IS_ORACLE_ROLE !== 'S'">
+                  <i class="bi" [class.bi-database]="role.IS_ORACLE_ROLE === 'S'" 
+                     [class.bi-app]="role.IS_ORACLE_ROLE !== 'S'"></i>
+                  {{ role.IS_ORACLE_ROLE === 'S' ? 'Oracle' : 'Aplicación' }}
+                </span>
+              </td>
+              <td data-label="Acciones" class="text-nowrap">
+                <button class="btn btn-action-warning me-1" (click)="openModal(role)" title="Editar">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-action-danger" (click)="deleteRole(role)" title="Eliminar">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal" [class.show]="showModal" [style.display]="showModal ? 'block' : 'none'" tabindex="-1" style="background-color: rgba(0,0,0,0.5); position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1050;">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content modal-content-custom">
+      <div class="modal-header modal-header-custom">
+        <h5 class="modal-title">
+          <i class="bi me-2" [class.bi-pencil-square]="editingRole" [class.bi-plus-circle]="!editingRole"></i>
+          {{ editingRole ? 'Editar' : 'Nuevo' }} Rol
+        </h5>
+        <button type="button" class="btn-close" (click)="closeModal()"></button>
+      </div>
+      <div class="modal-body modal-body-custom">
+        <form>
+          <div class="mb-3">
+            <label class="form-label-custom">Nombre del Rol *</label>
+            <input type="text" class="form-control-custom" [(ngModel)]="formData.roleName" name="roleName" placeholder="Ej: ADMIN, VIEWER, DBA">
+          </div>
+          <div class="mb-3">
+            <label class="form-label-custom">Descripción</label>
+            <textarea class="form-control-custom" [(ngModel)]="formData.description" name="description" rows="2" placeholder="Describe las funciones de este rol"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label-custom">
+              <i class="bi bi-diagram-2 me-1"></i>Rol Padre (Jerarquía)
+            </label>
+            <select class="form-select-custom" [(ngModel)]="formData.parentRoleId" name="parentRoleId">
+              <option [ngValue]="null">-- Sin padre (rol raíz) --</option>
+              <option *ngFor="let parent of availableParents" [ngValue]="parent.ROLE_ID">
+                {{ parent.ROLE_NAME }}
+              </option>
+            </select>
+            <small class="text-muted">Si seleccionas un padre, este rol heredará sus permisos</small>
+          </div>
+          <div class="mb-3">
+            <label class="form-label-custom">Tipo de Rol</label>
+            <select class="form-select-custom" [(ngModel)]="formData.isOracleRole" name="isOracleRole">
+              <option value="N">📱 Rol de Aplicación</option>
+              <option value="S">💾 Rol Oracle (existe en DB)</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer modal-footer-custom">
+        <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancelar</button>
+        <button type="button" class="btn btn-primary-custom" (click)="saveRole()">
+          <i class="bi bi-check-lg me-1"></i>Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop fade" *ngIf="showModal" style="z-index: 1040;"></div>

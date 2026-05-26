@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
+@CrossOrigin
 @RequestMapping("/api/permissions")
 public class PermissionController {
 
@@ -88,6 +89,20 @@ public class PermissionController {
 
         return Map.of("message", "Permiso eliminado");
     }
+
+@GetMapping("/role/{roleId}")
+public List<Map<String, Object>> getRolePermissions(@PathVariable Long roleId) {
+    return db.query("""
+        SELECT p.PERMISSION_ID, p.OBJECT_NAME, p.OBJECT_TYPE, 
+               p.PRIVILEGE_TYPE, p.SCHEMA_NAME, rp.GRANT_OPTION,
+               p.DESCRIPTION
+        FROM ROLE_PERMISSIONS rp
+        JOIN APP_PERMISSIONS p ON p.PERMISSION_ID = rp.PERMISSION_ID
+        WHERE rp.ROLE_ID = ?
+        ORDER BY p.PERMISSION_ID
+        """, roleId);
+}
+
 
     @PostMapping("/grant-role")
     public Map<String, Object> grantRole(

@@ -1,0 +1,177 @@
+<div class="permissions-container">
+  <h2 class="page-title mb-4">
+    <i class="bi bi-key-fill me-2"></i>Gestión de Permisos (GRANT/REVOKE)
+  </h2>
+
+  <div class="row g-4">
+    <!-- Lista de roles -->
+    <div class="col-md-4">
+      <div class="card card-glass fade-in">
+        <div class="card-header-custom card-header-roles">
+          <i class="bi bi-tags me-2"></i> Roles del Sistema
+          <span class="badge bg-light text-dark ms-2">{{ roles.length }}</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="roles-list">
+            <div *ngIf="roles.length === 0" class="empty-message">
+              <i class="bi bi-inbox"></i>
+              <p class="mb-0">No hay roles disponibles</p>
+            </div>
+            <div *ngFor="let role of roles"
+                 class="role-item"
+                 [class.active]="selectedRole?.ROLE_ID === role.ROLE_ID"
+                 (click)="selectRole(role)">
+              <div class="role-name">
+                <i class="bi bi-tag me-1"></i>{{ role.ROLE_NAME }}
+              </div>
+              <div class="role-description">{{ role.DESCRIPTION || 'Sin descripción' }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Permisos del rol -->
+    <div class="col-md-8">
+      <div class="card card-glass fade-in">
+        <div class="card-header-custom card-header-permisos d-flex justify-content-between align-items-center">
+          <span>
+            <i class="bi bi-shield-lock me-2"></i> 
+            Permisos de {{ selectedRole?.ROLE_NAME || 'Selecciona un rol' }}
+          </span>
+          <button class="btn-grant" (click)="openGrantModal()" [disabled]="!selectedRole">
+            <i class="bi bi-plus-circle me-1"></i> GRANT
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <!-- Sin rol seleccionado -->
+          <div *ngIf="!selectedRole" class="empty-message">
+            <i class="bi bi-hand-index-thumb fs-1"></i>
+            <p class="mt-2 mb-0">Selecciona un rol para ver sus permisos</p>
+          </div>
+
+          <!-- Cargando -->
+          <div *ngIf="selectedRole && loading" class="loading-spinner">
+            <div class="spinner-border text-success" style="width: 3rem; height: 3rem;"></div>
+            <p class="mt-2 mb-0">Cargando permisos...</p>
+          </div>
+
+          <!-- Sin permisos -->
+          <div *ngIf="selectedRole && !loading && permissions.length === 0" class="empty-message">
+            <i class="bi bi-shield-slash fs-1"></i>
+            <p class="mt-2 mb-0">No hay permisos asignados a este rol</p>
+            <small class="text-muted">Usa el botón GRANT para asignar permisos</small>
+          </div>
+
+          <!-- Tabla de permisos -->
+          <div class="table-responsive" *ngIf="selectedRole && !loading && permissions.length > 0">
+            <table class="table permissions-table">
+              <thead>
+                <tr>
+                  <th>Esquema</th>
+                  <th>TABLA</th>
+                  <th>Tipo</th>
+                  <th>Privilegio</th>
+                  <th>Grant Option</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let perm of permissions">
+                  <td data-label="Esquema">
+                    <code>{{ perm.SCHEMA_NAME }}</code>
+                  </td>
+                  <td data-label="Objeto">
+                    <strong>{{ perm.OBJECT_NAME }}</strong>
+                  </td>
+                  <td data-label="Tipo">
+                    <span class="badge bg-secondary">{{ perm.OBJECT_TYPE }}</span>
+                  </td>
+                  <td data-label="Privilegio">
+                    <span class="privilege-badge" 
+                          [class.privilege-select]="perm.PRIVILEGE_TYPE === 'SELECT'"
+                          [class.privilege-insert]="perm.PRIVILEGE_TYPE === 'INSERT'"
+                          [class.privilege-update]="perm.PRIVILEGE_TYPE === 'UPDATE'"
+                          [class.privilege-delete]="perm.PRIVILEGE_TYPE === 'DELETE'"
+                          [class.privilege-execute]="perm.PRIVILEGE_TYPE === 'EXECUTE'"
+                          [class.privilege-all]="perm.PRIVILEGE_TYPE === 'ALL'">
+                      {{ perm.PRIVILEGE_TYPE }}
+                    </span>
+                  </td>
+                  <td data-label="Grant Option">
+                    <span class="badge" [class.bg-success]="perm.GRANT_OPTION === 'S'" 
+                          [class.bg-secondary]="perm.GRANT_OPTION !== 'S'">
+                      {{ perm.GRANT_OPTION === 'S' ? '✅ Sí' : '❌ No' }}
+                    </span>
+                  </td>
+                  <td data-label="Acción">
+                    <button class="btn-revoke" (click)="revokePermission(perm)" title="Revocar permiso">
+                      <i class="bi bi-trash3 me-1"></i> REVOKE
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal GRANT -->
+<div class="modal" [class.show]="showGrantModal" [style.display]="showGrantModal ? 'block' : 'none'" tabindex="-1" style="background-color: rgba(0,0,0,0.5); position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1050;">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content modal-content-custom">
+      <div class="modal-header modal-header-custom">
+        <h5 class="modal-title">
+          <i class="bi bi-plus-circle me-2"></i>GRANT a {{ selectedRole?.ROLE_NAME }}
+        </h5>
+        <button type="button" class="btn-close" (click)="closeGrantModal()"></button>
+      </div>
+      <div class="modal-body modal-body-custom">
+        <div class="mb-3">
+          <label class="form-label-custom">Privilegio</label>
+          <select class="form-select-custom" [(ngModel)]="grantData.privilege">
+            <option *ngFor="let p of availablePrivileges" [value]="p">{{ p }}</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label-custom">Esquema</label>
+          <input class="form-control-custom" [(ngModel)]="grantData.schema" placeholder="PROYECTOFINAL">
+        </div>
+        <div class="mb-3">
+          <label class="form-label-custom">Objeto</label>
+          <input class="form-control-custom" [(ngModel)]="grantData.objectName" placeholder="Ej: APP_USERS, APP_ROLES">
+          <small class="text-muted">Nombre de la tabla o vista</small>
+        </div>
+        <div class="mb-3">
+          <label class="form-label-custom">Tipo de Objeto</label>
+          <select class="form-select-custom" [(ngModel)]="grantData.objectType">
+            <option value="TABLE">📊 TABLE</option>
+            <option value="VIEW">👁️ VIEW</option>
+            <option value="SEQUENCE">🔢 SEQUENCE</option>
+            <option value="PROCEDURE">⚙️ PROCEDURE</option>
+            <option value="FUNCTION">📐 FUNCTION</option>
+          </select>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" [(ngModel)]="grantData.grantOption" id="grantOption">
+          <label class="form-check-label" for="grantOption">
+            <strong>WITH GRANT OPTION</strong>
+            <small class="text-muted d-block">Permite que el rol pueda otorgar este permiso a otros</small>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer modal-footer-custom">
+        <button class="btn btn-secondary" (click)="closeGrantModal()">Cancelar</button>
+        <button class="btn-grant" (click)="savePermission()">
+          <i class="bi bi-check-lg me-1"></i> GRANT
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Backdrop -->
+<div class="modal-backdrop fade show" *ngIf="showGrantModal" style="z-index: 1040;"></div>

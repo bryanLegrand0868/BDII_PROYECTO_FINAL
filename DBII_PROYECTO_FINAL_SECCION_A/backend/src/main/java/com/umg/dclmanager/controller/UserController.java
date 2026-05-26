@@ -2,16 +2,16 @@ package com.umg.dclmanager.controller;
 
 import com.umg.dclmanager.dto.Requests.AppUser;
 import com.umg.dclmanager.service.DbService;
-
 import jakarta.servlet.http.HttpServletRequest;
 
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.Map;
 import java.util.List;
 
 @RestController
+@CrossOrigin
 @RequestMapping("/api/users")
 public class UserController {
 
@@ -25,24 +25,32 @@ public class UserController {
 
     @GetMapping
     public List<Map<String, Object>> all() {
-
         return db.query("""
-                SELECT user_id, username, email, full_name, status,
-                       app_role, oracle_username, created_at, last_login
-                FROM APP_USERS
-                ORDER BY user_id
-                """);
+            SELECT user_id, username, email, full_name, status,
+             app_role, oracle_username, created_at, last_login
+             FROM APP_USERS
+                ORDER BY user_id""");
     }
 
     @GetMapping("/{id}")
     public Map<String, Object> one(@PathVariable Long id) {
-
         return db.one("""
                 SELECT user_id, username, email, full_name, status,
                        app_role, oracle_username, created_at, last_login
                 FROM APP_USERS
                 WHERE user_id = ?
                 """, id);
+    }
+
+    @GetMapping("/{id}/roles")
+    public List<Map<String, Object>> getUserRoles(@PathVariable Long id) {
+        return db.query("""
+            SELECT r.ROLE_ID, r.ROLE_NAME, r.DESCRIPTION, r.IS_ORACLE_ROLE
+            FROM USER_ROLES ur
+            JOIN APP_ROLES r ON r.ROLE_ID = ur.ROLE_ID
+            WHERE ur.user_id = ? AND ur.is_active = 'S'
+            ORDER BY r.ROLE_ID
+            """, id);
     }
 
     @PostMapping
@@ -104,6 +112,25 @@ public class UserController {
                 "sql", sql == null ? "No se generó CREATE USER porque no se envió oracleUsername" : sql
         );
     }
+
+@GetMapping("/current/permissions")
+public List<Map<String, Object>> getCurrentUserPermissions(HttpServletRequest req) {
+    // Obtener el username del token (lo guarda el JwtFilter)
+    String username = (String) req.getAttribute("username");
+    
+    if (username == null) {
+        // Si no viene del filter, intentar obtener del SecurityContext
+        username = SecurityContextHolder.getContext().getAuthentication().getName();
+    }
+    
+    return db.query("""
+        SELECT DISTINCT OBJECT_NAME, PRIVILEGE_TYPE, SCHEMA_NAME
+        FROM VW_USER_EFFECTIVE_PERMISSIONS
+        WHERE USERNAME = ?
+        ORDER BY OBJECT_NAME, PRIVILEGE_TYPE
+        """, username);
+}
+
 
     @PutMapping("/{id}")
     public Map<String, Object> update(@PathVariable Long id, @RequestBody AppUser r) {

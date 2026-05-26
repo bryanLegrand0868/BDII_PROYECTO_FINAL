@@ -1,8 +1,6 @@
 package com.umg.dclmanager.controller;
 
-import com.umg.dclmanager.dto.Requests.ScriptReq;
 import com.umg.dclmanager.service.DbService;
-
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
+@CrossOrigin
 @RequestMapping("/api")
 public class ScriptAuditController {
 
@@ -21,118 +20,98 @@ public class ScriptAuditController {
         this.jdbc = jdbc;
     }
 
+    // ==================== AUDITORÍA ====================
+    
     @GetMapping("/audit")
-    public List<Map<String, Object>> audit() {
-        return db.query("SELECT * FROM VW_AUDIT_LOG");
+    public List<Map<String, Object>> getAllAudit() {
+        return db.query("""
+            SELECT * FROM VW_AUDIT_LOG
+            ORDER BY PERFORMED_AT DESC
+            """);
     }
 
-    @GetMapping("/scripts")
-    public List<Map<String, Object>> scripts() {
+    @GetMapping("/audit/filter")
+    public List<Map<String, Object>> filterAudit(
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) String user,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate
+    ) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT * FROM VW_AUDIT_LOG WHERE 1=1
+            """);
+        
+        if (action != null && !action.isEmpty()) {
+            sql.append(" AND ACTION_TYPE = '").append(action).append("'");
+        }
+        if (user != null && !user.isEmpty()) {
+            sql.append(" AND ACTOR_USERNAME LIKE '%").append(user).append("%'");
+        }
+        if (startDate != null && !startDate.isEmpty()) {
+            sql.append(" AND PERFORMED_AT >= TO_DATE('").append(startDate).append("', 'YYYY-MM-DD')");
+        }
+        if (endDate != null && !endDate.isEmpty()) {
+            sql.append(" AND PERFORMED_AT <= TO_DATE('").append(endDate).append("', 'YYYY-MM-DD') + 1");
+        }
+        
+        sql.append(" ORDER BY PERFORMED_AT DESC");
+        
+        return db.query(sql.toString());
+    }
 
+    // ==================== SCRIPTS SQL ====================
+    
+    @GetMapping("/scripts")
+    public List<Map<String, Object>> getAllScripts() {
         return db.query("""
-                SELECT script_id,
-                       generated_by,
-                       script_type,
-                       description,
-                       generated_at,
-                       applied,
-                       applied_at,
-                       applied_by,
-                       script_content
-                FROM SQL_SCRIPTS
-                ORDER BY generated_at DESC
-                """);
+            SELECT * FROM SQL_SCRIPTS
+            ORDER BY GENERATED_AT DESC
+            """);
     }
 
     @GetMapping("/scripts/pending")
-    public List<Map<String, Object>> pending() {
-        return db.query("SELECT * FROM VW_PENDING_SCRIPTS");
+    public List<Map<String, Object>> getPendingScripts() {
+        return db.query("""
+            SELECT * FROM SQL_SCRIPTS
+            WHERE APPLIED = 'N'
+            ORDER BY GENERATED_AT
+            """);
     }
 
-    @PostMapping("/scripts")
-    public Map<String, Object> create(@RequestBody ScriptReq r) {
-
-        Long id = db.insert(
-                "SCRIPT_ID",
-                """
-                INSERT INTO SQL_SCRIPTS(
-                    generated_by,
-                    script_type,
-                    script_content,
-                    description
-                )
-                VALUES(?,?,?,?)
-                """,
-                r.generatedBy(),
-                r.scriptType(),
-                r.scriptContent(),
-                r.description()
-        );
-
-        return Map.of(
-                "message", "Script guardado",
-                "scriptId", id
-        );
-    }
-
-    @PostMapping("/scripts/{id}/apply/{actor}")
-    public Map<String, Object> apply(
-            @PathVariable Long id,
-            @PathVariable Long actor
-    ) {
-
+    @PostMapping("/scripts/{scriptId}/execute")
+    public Map<String, Object> executeScript(
+            @PathVariable Long scriptId, 
+            @RequestParam Long actorId) {
+        
         Map<String, Object> script = db.one(
-                "SELECT script_content FROM SQL_SCRIPTS WHERE script_id = ?",
-                id
+            "SELECT script_content, description FROM SQL_SCRIPTS WHERE script_id = ?",
+            scriptId
         );
-
+        
         if (script == null) {
             throw new RuntimeException("Script no encontrado");
         }
-
-        String content = String.valueOf(script.get("SCRIPT_CONTENT"));
-
-        for (String part : content.split(";")) {
-
-            String sql = part.trim();
-
-            if (!sql.isBlank()) {
-                jdbc.execute(sql);
-            }
-        }
-
-        db.update("""
+        
+        String sql = (String) script.get("SCRIPT_CONTENT");
+        
+        try {
+            jdbc.execute(sql);
+            
+            db.update("""
                 UPDATE SQL_SCRIPTS
-                SET applied = 'S',
-                    applied_at = SYSTIMESTAMP,
-                    applied_by = ?
+                SET applied = 'S', applied_at = SYSTIMESTAMP, applied_by = ?
                 WHERE script_id = ?
-                """,
-                actor,
-                id
-        );
-
-        return Map.of("message", "Script aplicado en Oracle");
-    }
-
-    @GetMapping("/effective-permissions")
-    public List<Map<String, Object>> effective() {
-
-        return db.query("""
-                SELECT *
-                FROM VW_USER_EFFECTIVE_PERMISSIONS
-                ORDER BY user_id, origin_type
-                """);
-    }
-
-    @GetMapping("/dashboard")
-    public Map<String, Object> dashboard() {
-
-        return Map.of(
-                "usuarios", db.one("SELECT COUNT(*) TOTAL FROM APP_USERS"),
-                "roles", db.one("SELECT COUNT(*) TOTAL FROM APP_ROLES"),
-                "permisos", db.one("SELECT COUNT(*) TOTAL FROM APP_PERMISSIONS"),
-                "scriptsPendientes", db.one("SELECT COUNT(*) TOTAL FROM SQL_SCRIPTS WHERE applied = 'N'")
-        );
+                """, actorId, scriptId);
+            
+            return Map.of(
+                "message", "Script ejecutado correctamente",
+                "sql", sql
+            );
+        } catch (Exception e) {
+            return Map.of(
+                "error", "Error al ejecutar script: " + e.getMessage(),
+                "sql", sql
+            );
+        }
     }
 }

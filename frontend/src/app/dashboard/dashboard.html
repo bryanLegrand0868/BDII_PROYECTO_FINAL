@@ -1,0 +1,102 @@
+<div class="container-fluid">
+  <div class="dashboard-card">
+    
+    <!-- Header -->
+    <div class="dashboard-header">
+      <h2><i class="bi bi-database-lock"></i> DCL Manager</h2>
+      <p>Gestión de Seguridad y Permisos Oracle</p>
+    </div>
+
+    <!-- Perfil del usuario -->
+    <div class="profile-card">
+      <div class="row align-items-center">
+        <div class="col-md-2 text-center">
+          <div class="profile-icon mx-auto">
+            <i class="bi bi-person-fill"></i>
+          </div>
+        </div>
+        <div class="col-md-10">
+          <div class="row">
+            <div class="col-md-4">
+              <p><strong>Usuario:</strong> {{ currentUser?.USERNAME }}</p>
+              <p><strong>Nombre:</strong> {{ currentUser?.FULL_NAME }}</p>
+            </div>
+            <div class="col-md-4">
+              <p><strong>Email:</strong> {{ currentUser?.EMAIL }}</p>
+              <p><strong>Rol:</strong> 
+                <span class="badge" [class.bg-primary]="currentUser?.APP_ROLE === 'SUPERADMIN'" 
+                      [class.bg-info]="currentUser?.APP_ROLE === 'ADMIN'" 
+                      [class.bg-secondary]="currentUser?.APP_ROLE === 'VIEWER'">
+                  {{ currentUser?.APP_ROLE }}
+                </span>
+              </p>
+            </div>
+            <div class="col-md-4">
+              <p><strong>Estado:</strong> 
+                <span class="badge" [class.bg-success]="currentUser?.STATUS === 'ACTIVO'" 
+                      [class.bg-danger]="currentUser?.STATUS !== 'ACTIVO'">
+                  {{ currentUser?.STATUS }}
+                </span>
+              </p>
+              <p><strong>Último acceso:</strong> {{ currentUser?.LAST_LOGIN | date:'dd/MM/yyyy HH:mm' }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Módulos -->
+    <div class="container my-4">
+      <div class="row g-4">
+        <div class="col-md-3">
+          <div class="nav-card users" (click)="goTo('/users')">
+            <div class="card-body text-center">
+              <i class="bi bi-people"></i>
+              <h5>Usuarios</h5>
+              <p>Gestión de usuarios del sistema</p>
+              <button class="btn btn-primary btn-sm">Gestionar</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="nav-card roles" (click)="goTo('/roles')">
+            <div class="card-body text-center">
+              <i class="bi bi-tags"></i>
+              <h5>Roles</h5>
+              <p>Administración de roles</p>
+              <button class="btn btn-success btn-sm">Gestionar</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="nav-card permissions" (click)="goTo('/permissions')">
+            <div class="card-body text-center">
+              <i class="bi bi-key"></i>
+              <h5>Permisos</h5>
+              <p>GRANT / REVOKE</p>
+              <button class="btn btn-warning btn-sm">Gestionar</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="nav-card audit" (click)="goTo('/audit')">
+            <div class="card-body text-center">
+              <i class="bi bi-journal-text"></i>
+              <h5>Auditoría</h5>
+              <p>Logs del sistema</p>
+              <button class="btn btn-info btn-sm">Ver Logs</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logout -->
+    <div class="container mb-4">
+      <button class="btn btn-logout" (click)="logout()">
+        <i class="bi bi-box-arrow-right me-2"></i>Cerrar Sesión
+      </button>
+    </div>
+    
+  </div>
+</div>

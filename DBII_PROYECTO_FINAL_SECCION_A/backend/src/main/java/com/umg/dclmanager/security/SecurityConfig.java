@@ -2,13 +2,11 @@ package com.umg.dclmanager.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -36,11 +34,16 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // Endpoints públicos
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/scripts/**").hasAnyRole("SUPERADMIN", "ADMIN")
-                        .requestMatchers("/api/users/**").hasAnyRole("SUPERADMIN", "ADMIN")
-                        .requestMatchers("/api/roles/**").hasAnyRole("SUPERADMIN", "ADMIN")
-                        .requestMatchers("/api/permissions/**").hasAnyRole("SUPERADMIN", "ADMIN")
+                        
+                        // Cualquier usuario autenticado puede acceder a cualquier endpoint
+                        // Los permisos específicos se validarán en el controlador
+                        .requestMatchers(HttpMethod.GET, "/api/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/**").authenticated()
+                        
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class)
