@@ -1,0 +1,121 @@
+<div class="container-fluid p-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-shield-check me-2"></i>Probar Acceso (Fase 5)</h2>
+    <a routerLink="/dashboard" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Volver
+    </a>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>
+    Abre una conexión Oracle real con las credenciales que indiques y ejecuta el SELECT
+    contra el esquema <strong>HR</strong>.
+    Sin GRANT verás <code>ORA-00942</code> (table or view does not exist).
+    Con credenciales malas, <code>ORA-01017</code>. Cuenta bloqueada: <code>ORA-28000</code>.
+    Esto valida los 3 pasos de la Fase 5 de la rúbrica.
+  </div>
+
+  <div class="row">
+    <div class="col-md-5">
+      <div class="card shadow-sm">
+        <div class="card-header bg-danger text-white">
+          <i class="bi bi-key-fill me-2"></i>Credenciales del usuario a probar
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label>Usuario Oracle</label>
+            <input list="userlist" type="text" class="form-control" [(ngModel)]="username"
+                   placeholder="EJ: USUARIO_PRUEBA">
+            <datalist id="userlist">
+              <option *ngFor="let u of dbUsers" [value]="u.USERNAME"></option>
+            </datalist>
+          </div>
+          <div class="mb-3">
+            <label>Contraseña</label>
+            <input type="password" class="form-control" [(ngModel)]="password">
+          </div>
+
+          <hr>
+          <label>SQL a ejecutar (solo SELECT)</label>
+          <textarea class="form-control font-monospace" rows="4" [(ngModel)]="sql"></textarea>
+
+          <div class="mt-2">
+            <small class="text-muted">Atajos:</small>
+            <div class="d-flex flex-wrap gap-1 mt-1">
+              <button *ngFor="let p of presets"
+                      class="btn btn-sm btn-outline-secondary"
+                      (click)="sql = p.sql">
+                {{ p.label }}
+              </button>
+            </div>
+          </div>
+
+          <button class="btn btn-danger w-100 mt-3" (click)="test()" [disabled]="loading">
+            <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+            <i *ngIf="!loading" class="bi bi-play-fill me-1"></i>
+            Intentar acceso
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-7">
+      <div class="card shadow-sm h-100">
+        <div class="card-header"
+             [class.bg-success]="result?.ok"
+             [class.bg-danger]="result && !result.ok"
+             [class.text-white]="result"
+             [class.bg-light]="!result">
+          <strong *ngIf="!result"><i class="bi bi-hourglass me-2"></i>Esperando prueba...</strong>
+          <strong *ngIf="result?.ok"><i class="bi bi-check-circle me-2"></i>ACCESO PERMITIDO</strong>
+          <strong *ngIf="result && !result.ok"><i class="bi bi-x-circle me-2"></i>ACCESO DENEGADO</strong>
+        </div>
+        <div class="card-body">
+
+          <div *ngIf="!result" class="text-center text-muted py-5">
+            <i class="bi bi-shield" style="font-size: 4rem; opacity: 0.3;"></i>
+            <p class="mt-3">Ingresa credenciales y un SELECT para validar.</p>
+          </div>
+
+          <div *ngIf="result && !result.ok">
+            <div class="alert alert-danger mb-2">
+              <strong>Error Oracle:</strong>
+              <span *ngIf="result.errorCode" class="badge bg-dark ms-2">ORA-{{ result.errorCode }}</span>
+            </div>
+            <pre class="bg-dark text-warning p-3 rounded">{{ result.error }}</pre>
+            <p class="text-muted small mt-3">
+              <i class="bi bi-info-circle"></i>
+              Esto es exactamente lo que el catedrático quiere ver: el motor Oracle
+              rechazando la operación porque los permisos no se han concedido (o se revocaron).
+            </p>
+          </div>
+
+          <div *ngIf="result?.ok">
+            <p class="text-success mb-2">
+              <i class="bi bi-check2"></i> Consulta ejecutada como
+              <strong>{{ result.username }}</strong> — {{ result.rows.length }} fila(s)
+            </p>
+            <div class="table-responsive" style="max-height: 400px;">
+              <table class="table table-sm table-striped">
+                <thead class="table-dark sticky-top">
+                  <tr><th *ngFor="let c of columns()">{{ c }}</th></tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let row of result.rows">
+                    <td *ngFor="let c of columns()">{{ row[c] }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <details class="mt-3" *ngIf="result">
+            <summary class="text-muted" style="cursor:pointer;">Ver SQL enviado</summary>
+            <pre class="bg-light p-2 mt-2 small">{{ result.sql }}</pre>
+          </details>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

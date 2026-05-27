@@ -20,51 +20,29 @@ public class AuthController {
     private final PasswordEncoder encoder;
     private final JwtService jwt;
 
-
-
     public AuthController(DbService db, PasswordEncoder encoder, JwtService jwt) {
         this.db = db;
         this.encoder = encoder;
         this.jwt = jwt;
     }
 
+    @PostMapping("/login")
+    public Map<String, Object> login(@RequestBody Login r, HttpServletRequest req) {
 
-@GetMapping("/test-hash")
-public String testHash() {
-    return encoder.encode("admin123");
-}
+        Map<String, Object> user =
+                db.one("SELECT * FROM APP_USERS WHERE username = ?", r.username());
 
+        if (user == null) {
+            throw new RuntimeException("Usuario o contraseña incorrectos");
+        }
 
-   @PostMapping("/login")
-public Map<String, Object> login(@RequestBody Login r, HttpServletRequest req) {
-
-    Map<String, Object> user =
-            db.one("SELECT * FROM APP_USERS WHERE username = ?", r.username());
-
-    // ========== AGREGA ESTO AQUI ==========
-    System.out.println("=== DEBUG LOGIN ===");
-    System.out.println("Usuario: " + r.username());
-    System.out.println("Password: " + r.password());
-    System.out.println("User map: " + user);
-    if (user != null) {
-        System.out.println("Hash en BD: " + user.get("PASSWORD_HASH"));
-        System.out.println("¿Match?: " + encoder.matches(r.password(), String.valueOf(user.get("PASSWORD_HASH"))));
-    }
-    System.out.println("==================");
-    // =====================================
-
-    if (user == null) {
-        throw new RuntimeException("Usuario o contraseña incorrectos");
-    }
-    // ... resto igual
-
-        String status = String.valueOf(user.get("status"));
+        String status = String.valueOf(user.get("STATUS"));
 
         if (!"ACTIVO".equals(status)) {
             throw new RuntimeException("Usuario inactivo o bloqueado");
         }
 
-        String hash = String.valueOf(user.get("password_hash"));
+        String hash = String.valueOf(user.get("PASSWORD_HASH"));
 
         if (!encoder.matches(r.password(), hash)) {
 
@@ -115,5 +93,32 @@ public Map<String, Object> login(@RequestBody Login r, HttpServletRequest req) {
                 "token", token,
                 "user", user
         );
+    }
+
+    @PostMapping("/logout")
+    public Map<String, Object> logout(HttpServletRequest req) {
+
+        String username = (String) req.getAttribute("username");
+
+        if (username != null) {
+            Map<String, Object> user =
+                    db.one("SELECT user_id FROM APP_USERS WHERE username = ?", username);
+
+            if (user != null) {
+                db.audit(
+                        ((Number) user.get("USER_ID")).longValue(),
+                        "LOGOUT",
+                        "SYSTEM",
+                        null,
+                        username,
+                        null,
+                        req.getRemoteAddr(),
+                        "OK",
+                        null
+                );
+            }
+        }
+
+        return Map.of("message", "Sesión cerrada");
     }
 }

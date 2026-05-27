@@ -1,0 +1,254 @@
+<div class="container-fluid p-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-people-fill me-2"></i>Usuarios Oracle (DBA_USERS)</h2>
+    <div>
+      <a routerLink="/dashboard" class="btn btn-outline-secondary me-2">
+        <i class="bi bi-arrow-left"></i> Volver
+      </a>
+      <button class="btn btn-success" (click)="openCreate()">
+        <i class="bi bi-plus-circle me-1"></i>Nuevo Usuario Oracle
+      </button>
+    </div>
+  </div>
+
+  <!-- Resultado última operación -->
+  <div *ngIf="lastSql" class="alert alert-success">
+    <strong><i class="bi bi-check-circle me-1"></i>{{ lastMessage }}</strong>
+    <pre class="mb-0 mt-2 bg-dark text-light p-2 rounded small">{{ lastSql }}</pre>
+  </div>
+  <div *ngIf="lastError" class="alert alert-danger">
+    <strong><i class="bi bi-x-circle me-1"></i>Error:</strong> {{ lastError }}
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <input type="text" class="form-control" placeholder="🔍 Filtrar por nombre..."
+                 [(ngModel)]="filter">
+        </div>
+        <div class="col-md-6 text-end">
+          <button class="btn btn-outline-primary" (click)="load()">
+            <i class="bi bi-arrow-clockwise"></i> Refrescar
+          </button>
+        </div>
+      </div>
+
+      <div *ngIf="loading" class="text-center my-3">
+        <div class="spinner-border text-primary"></div>
+      </div>
+
+      <div class="table-responsive" *ngIf="!loading">
+        <table class="table table-hover">
+          <thead class="table-dark">
+            <tr>
+              <th>USERNAME</th>
+              <th>ESTADO</th>
+              <th>CREADO</th>
+              <th>TABLESPACE</th>
+              <th class="text-end">ACCIONES</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let u of filtered()">
+              <td><strong>{{ u.USERNAME }}</strong></td>
+              <td>
+                <span class="badge"
+                  [class.bg-success]="u.ACCOUNT_STATUS === 'OPEN'"
+                  [class.bg-danger]="u.ACCOUNT_STATUS?.includes('LOCKED')"
+                  [class.bg-warning]="u.ACCOUNT_STATUS?.includes('EXPIRED')">
+                  {{ u.ACCOUNT_STATUS }}
+                </span>
+              </td>
+              <td><small>{{ u.CREATED | date:'dd/MM/yyyy' }}</small></td>
+              <td><small>{{ u.DEFAULT_TABLESPACE }}</small></td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-outline-info me-1" (click)="details(u)" title="Ver detalles">
+                  <i class="bi bi-info-circle"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-primary me-1" (click)="openGrantRole(u)" title="Asignar Rol">
+                  <i class="bi bi-tags"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-warning me-1" (click)="openPwd(u)" title="Cambiar password">
+                  <i class="bi bi-key"></i>
+                </button>
+                <button *ngIf="u.ACCOUNT_STATUS === 'OPEN'"
+                        class="btn btn-sm btn-outline-secondary me-1" (click)="lock(u)" title="Bloquear">
+                  <i class="bi bi-lock"></i>
+                </button>
+                <button *ngIf="u.ACCOUNT_STATUS?.includes('LOCKED')"
+                        class="btn btn-sm btn-outline-success me-1" (click)="unlock(u)" title="Desbloquear">
+                  <i class="bi bi-unlock"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" (click)="drop(u)" title="Eliminar">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Crear -->
+<div class="modal" [style.display]="showCreate ? 'block' : 'none'"
+     style="background: rgba(0,0,0,0.5);" *ngIf="showCreate">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Nuevo Usuario Oracle</h5>
+        <button class="btn-close btn-close-white" (click)="showCreate = false"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label>Username *</label>
+          <input type="text" class="form-control" [(ngModel)]="newUser.username"
+                 placeholder="EJ: USUARIO_PRUEBA">
+          <small class="text-muted">Sólo letras, números y guiones bajos</small>
+        </div>
+        <div class="mb-3">
+          <label>Password *</label>
+          <input type="text" class="form-control" [(ngModel)]="newUser.password" placeholder="Oracle123">
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label>Default Tablespace</label>
+            <input type="text" class="form-control" [(ngModel)]="newUser.defaultTablespace">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label>Temporary Tablespace</label>
+            <input type="text" class="form-control" [(ngModel)]="newUser.temporaryTablespace">
+          </div>
+        </div>
+        <div class="alert alert-info small">
+          <i class="bi bi-info-circle"></i>
+          Se ejecutará: <code>CREATE USER ... IDENTIFIED BY ...</code> +
+          <code>GRANT CREATE SESSION TO ...</code>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="showCreate = false">Cancelar</button>
+        <button class="btn btn-success" (click)="createUser()">Crear en Oracle</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Password -->
+<div class="modal" [style.display]="showPwd ? 'block' : 'none'"
+     style="background: rgba(0,0,0,0.5);" *ngIf="showPwd">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title"><i class="bi bi-key me-2"></i>Cambiar password — {{ pwdUser }}</h5>
+        <button class="btn-close" (click)="showPwd = false"></button>
+      </div>
+      <div class="modal-body">
+        <label>Nueva contraseña</label>
+        <input type="text" class="form-control" [(ngModel)]="newPwd">
+        <div class="alert alert-info mt-3 small">
+          <code>ALTER USER {{ pwdUser }} IDENTIFIED BY ...</code>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="showPwd = false">Cancelar</button>
+        <button class="btn btn-warning" (click)="changePwd()">Cambiar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detalles -->
+<div class="modal" [style.display]="showDetails ? 'block' : 'none'"
+     style="background: rgba(0,0,0,0.5);" *ngIf="showDetails">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title">
+          <i class="bi bi-info-circle me-2"></i>Detalles — {{ detailsUser?.USERNAME }}
+        </h5>
+        <button class="btn-close btn-close-white" (click)="showDetails = false"></button>
+      </div>
+      <div class="modal-body">
+        <h6 class="text-primary">Roles concedidos (DBA_ROLE_PRIVS)</h6>
+        <table class="table table-sm">
+          <thead><tr><th>Rol</th><th>WITH ADMIN</th><th>DEFAULT</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let r of detailsRoles">
+              <td><code>{{ r.GRANTED_ROLE }}</code></td>
+              <td>{{ r.ADMIN_OPTION }}</td>
+              <td>{{ r.DEFAULT_ROLE }}</td>
+            </tr>
+            <tr *ngIf="detailsRoles.length === 0">
+              <td colspan="3" class="text-muted text-center">Sin roles</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h6 class="text-success mt-4">Privilegios sobre objetos (DBA_TAB_PRIVS)</h6>
+        <table class="table table-sm">
+          <thead><tr><th>Owner</th><th>Tabla</th><th>Privilegio</th><th>GRANTABLE</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let p of detailsObj">
+              <td>{{ p.OWNER }}</td>
+              <td>{{ p.TABLE_NAME }}</td>
+              <td><span class="badge bg-success">{{ p.PRIVILEGE }}</span></td>
+              <td>{{ p.GRANTABLE }}</td>
+            </tr>
+            <tr *ngIf="detailsObj.length === 0">
+              <td colspan="4" class="text-muted text-center">Sin privilegios directos</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h6 class="text-warning mt-4">Privilegios del sistema (DBA_SYS_PRIVS)</h6>
+        <table class="table table-sm">
+          <thead><tr><th>Privilegio</th><th>WITH ADMIN</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let s of detailsSys">
+              <td><code>{{ s.PRIVILEGE }}</code></td>
+              <td>{{ s.ADMIN_OPTION }}</td>
+            </tr>
+            <tr *ngIf="detailsSys.length === 0">
+              <td colspan="2" class="text-muted text-center">Sin privilegios de sistema</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="showDetails = false">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Grant Role -->
+<div class="modal" [style.display]="showGrantRole ? 'block' : 'none'"
+     style="background: rgba(0,0,0,0.5);" *ngIf="showGrantRole">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="bi bi-tags me-2"></i>Asignar rol a {{ detailsUser?.USERNAME }}</h5>
+        <button class="btn-close btn-close-white" (click)="showGrantRole = false"></button>
+      </div>
+      <div class="modal-body">
+        <label>Rol a otorgar</label>
+        <select class="form-select" [(ngModel)]="grantRoleSelected">
+          <option [ngValue]="null">-- Seleccionar --</option>
+          <option *ngFor="let r of allRoles" [ngValue]="r.ROLE_ID">{{ r.ROLE_NAME }}</option>
+        </select>
+        <div class="form-check mt-3">
+          <input type="checkbox" class="form-check-input" id="adminOpt" [(ngModel)]="grantRoleAdmin">
+          <label for="adminOpt" class="form-check-label">WITH ADMIN OPTION</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="showGrantRole = false">Cancelar</button>
+        <button class="btn btn-primary" (click)="grantRole()">GRANT</button>
+      </div>
+    </div>
+  </div>
+</div>

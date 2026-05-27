@@ -1,12 +1,13 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-users',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './users.html',
   styleUrl: './users.css',
 })
@@ -37,7 +38,7 @@ export class Users implements OnInit {
   userPermissions: string[] = [];
   currentUserId: number = 0;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     this.loadCurrentUser();
@@ -68,6 +69,14 @@ export class Users implements OnInit {
   }
 
   hasPermission(objectName: string, privilege: string): boolean {
+    // SUPERADMIN puede todo, sin importar el catálogo granular.
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const u = JSON.parse(userStr);
+        if (u.APP_ROLE === 'SUPERADMIN') return true;
+      } catch {}
+    }
     return this.userPermissions.includes(`${objectName}_${privilege}`);
   }
 
@@ -88,19 +97,17 @@ export class Users implements OnInit {
 
   loadUsers() {
     this.loading = true;
+    this.cdr.detectChanges();
     this.http.get('http://localhost:8080/api/users').subscribe({
       next: (data: any) => {
-        this.users = data;
-        console.log('Usuarios:', this.users);
-        // Cargar roles para cada usuario
-        this.users.forEach((user: any) => {
-          this.loadUserRoles(user);
-        });
+        this.users = data || [];
+        this.users.forEach((user: any) => this.loadUserRoles(user));
         this.loading = false;
+        this.cdr.detectChanges();
       },
-      error: (error) => {
-        console.error('Error:', error);
+      error: () => {
         this.loading = false;
+        this.cdr.detectChanges();
       }
     });
   }

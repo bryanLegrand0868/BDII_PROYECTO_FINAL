@@ -1,0 +1,118 @@
+<div class="container-fluid p-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-diagram-3 me-2"></i>Jerarquía de Roles</h2>
+    <div>
+      <a routerLink="/dashboard" class="btn btn-outline-secondary me-2">
+        <i class="bi bi-arrow-left"></i> Volver
+      </a>
+      <button class="btn btn-primary" (click)="load()">
+        <i class="bi bi-arrow-clockwise"></i> Refrescar
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="text-center my-5">
+    <div class="spinner-border text-primary"></div>
+  </div>
+
+  <div class="row" *ngIf="!loading">
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <i class="bi bi-diagram-3 me-2"></i>Árbol de jerarquía
+        </div>
+        <div class="card-body p-3">
+          <p class="text-muted small mb-3">
+            Clic en un nodo para ver sus permisos y grantees.
+            Triángulos para expandir/contraer.
+          </p>
+          <div *ngIf="tree.length === 0" class="text-center text-muted py-4">
+            No hay roles en el catálogo.
+          </div>
+          <ul class="tree">
+            <ng-container *ngTemplateOutlet="node; context: {$implicit: tree}"></ng-container>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-info text-white">
+          <i class="bi bi-info-circle me-2"></i>
+          Detalle del rol seleccionado
+        </div>
+        <div class="card-body">
+
+          <div *ngIf="!selected" class="text-center text-muted py-5">
+            <i class="bi bi-cursor" style="font-size: 3rem; opacity: 0.3;"></i>
+            <p class="mt-2">Selecciona un rol del árbol</p>
+          </div>
+
+          <div *ngIf="selected">
+            <h4 class="text-primary">
+              <i class="bi bi-tag"></i> {{ selected.ROLE_NAME }}
+            </h4>
+            <p class="text-muted">{{ selected.DESCRIPTION || 'Sin descripción' }}</p>
+
+            <h6 class="mt-4 text-success">
+              <i class="bi bi-key me-1"></i>Permisos asignados ({{ selectedPerms.length }})
+            </h6>
+            <table class="table table-sm">
+              <thead><tr><th>Objeto</th><th>Privilegio</th><th>GRANT OPT</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let p of selectedPerms">
+                  <td><code>{{ p.SCHEMA_NAME }}.{{ p.OBJECT_NAME }}</code></td>
+                  <td><span class="badge bg-success">{{ p.PRIVILEGE_TYPE }}</span></td>
+                  <td>{{ p.GRANT_OPTION }}</td>
+                </tr>
+                <tr *ngIf="selectedPerms.length === 0">
+                  <td colspan="3" class="text-muted text-center">Sin permisos</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h6 class="mt-4 text-warning">
+              <i class="bi bi-people me-1"></i>Concedido a (DBA_ROLE_PRIVS) — {{ selectedGrantees.length }}
+            </h6>
+            <table class="table table-sm">
+              <thead><tr><th>Grantee</th><th>ADMIN</th><th>DEFAULT</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let g of selectedGrantees">
+                  <td><code>{{ g.GRANTEE }}</code></td>
+                  <td>{{ g.ADMIN_OPTION }}</td>
+                  <td>{{ g.DEFAULT_ROLE }}</td>
+                </tr>
+                <tr *ngIf="selectedGrantees.length === 0">
+                  <td colspan="3" class="text-muted text-center">No concedido a nadie</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recursive template -->
+<ng-template #node let-nodes>
+  <li *ngFor="let n of nodes" class="tree-node">
+    <div class="tree-item" [class.tree-active]="selected?.ROLE_ID === n.ROLE_ID">
+      <span class="tree-toggle" (click)="toggle(n)" *ngIf="n.children.length">
+        <i class="bi" [class.bi-caret-down-fill]="n.expanded" [class.bi-caret-right-fill]="!n.expanded"></i>
+      </span>
+      <span class="tree-toggle empty" *ngIf="!n.children.length">·</span>
+
+      <span class="tree-label" (click)="select(n)">
+        <i class="bi bi-tag-fill me-1 text-primary"></i>
+        <strong>{{ n.ROLE_NAME }}</strong>
+        <small class="text-muted ms-2" *ngIf="n.DESCRIPTION">— {{ n.DESCRIPTION }}</small>
+      </span>
+    </div>
+    <ul *ngIf="n.expanded && n.children.length">
+      <ng-container *ngTemplateOutlet="node; context: {$implicit: n.children}"></ng-container>
+    </ul>
+  </li>
+</ng-template>

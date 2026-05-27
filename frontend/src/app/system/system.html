@@ -1,0 +1,147 @@
+<div class="container-fluid p-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-hdd-network me-2"></i>Sistema y Conexión</h2>
+    <div>
+      <a routerLink="/dashboard" class="btn btn-outline-secondary me-2">
+        <i class="bi bi-arrow-left"></i> Volver
+      </a>
+      <button class="btn btn-primary" (click)="refresh()">
+        <i class="bi bi-arrow-clockwise"></i> Refrescar
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="text-center my-5">
+    <div class="spinner-border text-primary"></div>
+    <p class="mt-2">Conectando al DBMS...</p>
+  </div>
+
+  <div *ngIf="error" class="alert alert-danger">
+    <i class="bi bi-exclamation-triangle me-2"></i><strong>Error:</strong> {{ error }}
+  </div>
+
+  <div *ngIf="info && !loading" class="row g-4">
+
+    <!-- Fase 1.1 — Conexión exitosa -->
+    <div class="col-md-4">
+      <div class="card border-success shadow-sm h-100">
+        <div class="card-header bg-success text-white">
+          <i class="bi bi-plug-fill me-2"></i><strong>1. Conexión al DBMS</strong>
+        </div>
+        <div class="card-body text-center">
+          <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+          <h4 class="mt-2 text-success">Conectado</h4>
+          <p class="text-muted mb-0">Conexión activa con Oracle</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fase 1.2 — Info del servidor -->
+    <div class="col-md-8">
+      <div class="card border-primary shadow-sm h-100">
+        <div class="card-header bg-primary text-white">
+          <i class="bi bi-server me-2"></i><strong>2. Información del Servidor</strong>
+        </div>
+        <div class="card-body">
+          <table class="table table-sm mb-2">
+            <tbody>
+              <tr><th style="width:35%">Instancia</th><td>{{ info.instance?.INSTANCE_NAME }}</td></tr>
+              <tr><th>Host</th><td>{{ info.instance?.HOST_NAME }}</td></tr>
+              <tr><th>Versión</th><td>{{ info.instance?.VERSION }}</td></tr>
+              <tr><th>Estado</th>
+                <td><span class="badge bg-success">{{ info.instance?.STATUS }}</span></td></tr>
+              <tr><th>Iniciado</th>
+                <td>{{ info.instance?.STARTUP_TIME | date:'dd/MM/yyyy HH:mm' }}</td></tr>
+            </tbody>
+          </table>
+          <details>
+            <summary class="text-primary" style="cursor:pointer;">
+              Ver banner completo (V$VERSION)
+            </summary>
+            <pre class="bg-light p-2 mt-2 small">{{ info.version | json }}</pre>
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fase 1.3 — Usuario conectado -->
+    <div class="col-md-12">
+      <div class="card border-warning shadow-sm">
+        <div class="card-header bg-warning text-dark">
+          <i class="bi bi-person-badge me-2"></i><strong>3. Sesión actual (SYS_CONTEXT)</strong>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-4">
+              <p class="mb-1"><strong>SESSION_USER:</strong></p>
+              <h5 class="text-primary">{{ info.session?.SESSION_USER }}</h5>
+            </div>
+            <div class="col-md-4">
+              <p class="mb-1"><strong>CURRENT_SCHEMA:</strong></p>
+              <h5>{{ info.session?.CURRENT_SCHEMA }}</h5>
+            </div>
+            <div class="col-md-4">
+              <p class="mb-1"><strong>SESSION_ID:</strong></p>
+              <h5>{{ info.session?.SESSION_ID }}</h5>
+            </div>
+            <div class="col-md-4 mt-3">
+              <p class="mb-1"><strong>DB_NAME:</strong></p>
+              <span>{{ info.session?.DB_NAME }}</span>
+            </div>
+            <div class="col-md-4 mt-3">
+              <p class="mb-1"><strong>SERVER_HOST:</strong></p>
+              <span>{{ info.session?.SERVER_HOST }}</span>
+            </div>
+            <div class="col-md-4 mt-3">
+              <p class="mb-1"><strong>IP_ADDRESS:</strong></p>
+              <span>{{ info.session?.IP_ADDRESS || '—' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fase 1.4 — Listado de usuarios Oracle -->
+    <div class="col-md-12">
+      <div class="card border-info shadow-sm">
+        <div class="card-header bg-info text-white">
+          <i class="bi bi-people-fill me-2"></i>
+          <strong>4. Usuarios existentes en Oracle (DBA_USERS)</strong>
+          <span class="badge bg-light text-dark ms-2">{{ dbUsers.length }}</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive" style="max-height: 400px;">
+            <table class="table table-sm table-hover mb-0">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th>#</th>
+                  <th>USERNAME</th>
+                  <th>ACCOUNT_STATUS</th>
+                  <th>CREATED</th>
+                  <th>LOCK_DATE</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let u of dbUsers; let i = index">
+                  <td>{{ i + 1 }}</td>
+                  <td><code>{{ u.USERNAME }}</code></td>
+                  <td>
+                    <span class="badge"
+                          [class.bg-success]="u.ACCOUNT_STATUS === 'OPEN'"
+                          [class.bg-warning]="u.ACCOUNT_STATUS?.includes('EXPIRED')"
+                          [class.bg-danger]="u.ACCOUNT_STATUS?.includes('LOCKED')">
+                      {{ u.ACCOUNT_STATUS }}
+                    </span>
+                  </td>
+                  <td>{{ u.CREATED | date:'dd/MM/yyyy' }}</td>
+                  <td>{{ u.LOCK_DATE ? (u.LOCK_DATE | date:'dd/MM/yyyy HH:mm') : '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

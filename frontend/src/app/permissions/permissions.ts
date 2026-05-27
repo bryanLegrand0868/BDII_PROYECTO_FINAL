@@ -2,11 +2,12 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-permissions',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './permissions.html',
   styleUrl: './permissions.css',
 })
@@ -23,8 +24,8 @@ export class Permissions implements OnInit {
     roleId: null as number | null,
     permissionId: null as number | null,
     privilege: 'SELECT',
-    schema: 'PROYECTOFINAL',
-    objectName: '',
+    schema: 'HR',
+    objectName: 'EMPLOYEES',
     objectType: 'TABLE',
     grantOption: false
   };
@@ -90,8 +91,8 @@ export class Permissions implements OnInit {
       roleId: this.selectedRole.ROLE_ID,
       permissionId: null,
       privilege: 'SELECT',
-      schema: 'PROYECTOFINAL',
-      objectName: '',
+      schema: 'HR',
+      objectName: 'EMPLOYEES',
       objectType: 'TABLE',
       grantOption: false
     };

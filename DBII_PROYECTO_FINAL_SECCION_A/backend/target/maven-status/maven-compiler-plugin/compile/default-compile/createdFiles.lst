@@ -1,0 +1,10 @@
+com\umg\dclmanager\dto\Requests$TestAccessReq.class
+com\umg\dclmanager\service\BootstrapService.class
+com\umg\dclmanager\service\OracleTestService$Result.class
+com\umg\dclmanager\dto\Requests$DbUserCreateReq.class
+com\umg\dclmanager\dto\Requests$GrantRoleToDbUserReq.class
+com\umg\dclmanager\controller\DbUserController.class
+com\umg\dclmanager\dto\Requests$DbUserActionReq.class
+com\umg\dclmanager\dto\Requests$DbUserPasswordReq.class
+com\umg\dclmanager\service\OracleTestService.class
+com\umg\dclmanager\controller\SystemController.class

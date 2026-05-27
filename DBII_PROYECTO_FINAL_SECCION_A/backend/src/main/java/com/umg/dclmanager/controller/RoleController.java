@@ -1,6 +1,7 @@
 package com.umg.dclmanager.controller;
 
 import com.umg.dclmanager.dto.Requests.AssignRoleReq;
+import com.umg.dclmanager.dto.Requests.GrantRoleToDbUserReq;
 import com.umg.dclmanager.dto.Requests.RoleReq;
 import com.umg.dclmanager.service.DbService;
 
@@ -36,61 +37,51 @@ public class RoleController {
                 """);
     }
 
+    /** Lista los roles Oracle reales (catálogo + DBA_ROLES). */
+    @GetMapping("/db")
+    public List<Map<String, Object>> dbRoles() {
+        return db.query("""
+                SELECT role, oracle_maintained, common
+                FROM DBA_ROLES
+                ORDER BY role
+                """);
+    }
+
     @PostMapping
     public Map<String, Object> create(@RequestBody RoleReq r, HttpServletRequest req) {
 
         String role = db.q(r.roleName());
-
-        String sql = "CREATE ROLE " + role;
+        Long actor = db.valActor(r.createdBy());
 
         Long id = db.insert(
                 "ROLE_ID",
                 """
                 INSERT INTO APP_ROLES(
-                    role_name,
-                    description,
-                    parent_role_id,
-                    is_oracle_role,
-                    created_by
-                )
-                VALUES(?,?,?,?,?)
+                    role_name, description, parent_role_id,
+                    is_oracle_role, created_by
+                ) VALUES(?,?,?,?,?)
                 """,
-                role,
-                r.description(),
-                r.parentRoleId(),
-                db.val(r.isOracleRole(), "N"),
-                r.createdBy()
+                role, r.description(), r.parentRoleId(), "S", actor
         );
 
-        db.update("""
-                INSERT INTO SQL_SCRIPTS(
-                    generated_by,
-                    script_type,
-                    script_content,
-                    description
-                )
-                VALUES(?,?,?,?)
-                """,
-                r.createdBy(),
-                "CREATE_ROLE",
-                sql,
-                "Crear rol " + role
-        );
+        String sql = "CREATE ROLE " + role;
 
-        db.audit(
-                r.createdBy(),
-                "CREATE_ROLE",
-                "ROLE",
-                id,
-                role,
-                sql,
-                req.getRemoteAddr(),
-                "OK",
-                null
-        );
+        try {
+            db.executeDCL(
+                    sql, "CREATE_ROLE",
+                    actor, "CREATE_ROLE", "ROLE",
+                    id, role,
+                    "Crear rol Oracle " + role,
+                    req.getRemoteAddr()
+            );
+        } catch (RuntimeException ex) {
+            // Rollback del registro en APP_ROLES si Oracle rechazó (p.ej. ya existe).
+            db.update("DELETE FROM APP_ROLES WHERE role_id = ?", id);
+            throw ex;
+        }
 
         return Map.of(
-                "message", "Rol creado y script generado",
+                "message", "Rol creado en Oracle",
                 "roleId", id,
                 "sql", sql
         );
@@ -101,20 +92,13 @@ public class RoleController {
 
         db.update("""
                 UPDATE APP_ROLES
-                SET role_name = ?,
-                    description = ?,
-                    parent_role_id = ?,
-                    is_oracle_role = ?
+                SET description = ?, parent_role_id = ?
                 WHERE role_id = ?
                 """,
-                db.q(r.roleName()),
-                r.description(),
-                r.parentRoleId(),
-                db.val(r.isOracleRole(), "N"),
-                id
+                r.description(), r.parentRoleId(), id
         );
 
-        return Map.of("message", "Rol actualizado");
+        return Map.of("message", "Rol actualizado (sólo metadatos en catálogo)");
     }
 
     @DeleteMapping("/{id}/{actor}")
@@ -125,182 +109,132 @@ public class RoleController {
     ) {
 
         Map<String, Object> role = db.one(
-                "SELECT role_name FROM APP_ROLES WHERE role_id = ?",
-                id
-        );
+                "SELECT role_name FROM APP_ROLES WHERE role_id = ?", id);
 
-        if (role == null) {
-            throw new RuntimeException("Rol no encontrado");
-        }
+        if (role == null) throw new RuntimeException("Rol no encontrado");
 
         String roleName = db.q(String.valueOf(role.get("ROLE_NAME")));
-
         String sql = "DROP ROLE " + roleName;
 
-        db.update("""
-                INSERT INTO SQL_SCRIPTS(
-                    generated_by,
-                    script_type,
-                    script_content,
-                    description
-                )
-                VALUES(?,?,?,?)
-                """,
-                actor,
-                "DROP_ROLE",
-                sql,
-                "Eliminar rol " + roleName
+        db.executeDCL(
+                sql, "DROP_ROLE",
+                actor, "DROP_ROLE", "ROLE",
+                id, roleName,
+                "Eliminar rol Oracle " + roleName,
+                req.getRemoteAddr()
         );
 
         db.update("DELETE FROM APP_ROLES WHERE role_id = ?", id);
 
-        db.audit(
-                actor,
-                "DROP_ROLE",
-                "ROLE",
-                id,
-                roleName,
-                sql,
-                req.getRemoteAddr(),
-                "OK",
-                null
-        );
-
-        return Map.of(
-                "message", "Rol eliminado y script generado",
-                "sql", sql
-        );
+        return Map.of("message", "Rol eliminado en Oracle", "sql", sql);
     }
 
+    /** Asigna un rol del catálogo a un APP_USER (no ejecuta DCL Oracle). */
     @PostMapping("/assign")
     public Map<String, Object> assign(@RequestBody AssignRoleReq r, HttpServletRequest req) {
 
         db.update("""
                 INSERT INTO USER_ROLES(
-                    user_id,
-                    role_id,
-                    assigned_by,
-                    expires_at,
-                    is_active
-                )
-                VALUES(?,?,?,NULL,'S')
+                    user_id, role_id, assigned_by, expires_at, is_active
+                ) VALUES(?,?,?,NULL,'S')
                 """,
-                r.userId(),
-                r.roleId(),
-                r.assignedBy()
+                r.userId(), r.roleId(), r.assignedBy()
         );
 
-        Map<String, Object> role = db.one(
-                "SELECT role_name FROM APP_ROLES WHERE role_id = ?",
-                r.roleId()
-        );
-
-        Map<String, Object> user = db.one(
-                "SELECT oracle_username, username FROM APP_USERS WHERE user_id = ?",
-                r.userId()
-        );
-
-        String destination = user.get("ORACLE_USERNAME") != null
-                ? db.q(String.valueOf(user.get("ORACLE_USERNAME")))
-                : db.q(String.valueOf(user.get("USERNAME")));
-
-        String sql = "GRANT " + db.q(String.valueOf(role.get("ROLE_NAME"))) +
-                " TO " + destination;
-
-        db.update("""
-                INSERT INTO SQL_SCRIPTS(
-                    generated_by,
-                    script_type,
-                    script_content,
-                    description
-                )
-                VALUES(?,?,?,?)
-                """,
-                r.assignedBy(),
-                "GRANT",
-                sql,
-                "Asignar rol a usuario"
-        );
-
-        db.audit(
-                r.assignedBy(),
-                "ASSIGN_ROLE",
-                "ROLE",
-                r.roleId(),
-                "USER_ID=" + r.userId() + " ROLE_ID=" + r.roleId(),
-                sql,
-                req.getRemoteAddr(),
-                "OK",
-                null
-        );
-
-        return Map.of(
-                "message", "Rol asignado",
-                "sql", sql
-        );
+        return Map.of("message", "Rol asignado al usuario de la app");
     }
 
     @DeleteMapping("/assign/{userId}/{roleId}/{actor}")
     public Map<String, Object> revoke(
             @PathVariable Long userId,
             @PathVariable Long roleId,
+            @PathVariable Long actor
+    ) {
+
+        db.update("DELETE FROM USER_ROLES WHERE user_id = ? AND role_id = ?",
+                userId, roleId);
+
+        return Map.of("message", "Rol revocado del usuario de la app");
+    }
+
+    /** Asigna un rol del catálogo a un usuario Oracle REAL: GRANT rol TO oracleUser. */
+    @PostMapping("/grant-to-db-user")
+    public Map<String, Object> grantToDbUser(
+            @RequestBody GrantRoleToDbUserReq r,
+            HttpServletRequest req
+    ) {
+
+        Map<String, Object> role = db.one(
+                "SELECT role_name FROM APP_ROLES WHERE role_id = ?", r.roleId());
+
+        if (role == null) throw new RuntimeException("Rol no encontrado");
+
+        String roleName = db.q(String.valueOf(role.get("ROLE_NAME")));
+        String oracleUser = db.q(r.oracleUsername());
+        boolean withAdmin = "S".equalsIgnoreCase(r.adminOption());
+
+        String sql = "GRANT " + roleName + " TO " + oracleUser +
+                (withAdmin ? " WITH ADMIN OPTION" : "");
+
+        db.executeDCL(
+                sql, "GRANT",
+                db.valActor(r.actorId()),
+                "GRANT", "ROLE",
+                r.roleId(),
+                "ROLE=" + roleName + " USER=" + oracleUser,
+                "GRANT rol " + roleName + " a " + oracleUser,
+                req.getRemoteAddr()
+        );
+
+        return Map.of("message", "Rol concedido al usuario Oracle", "sql", sql);
+    }
+
+    @DeleteMapping("/grant-to-db-user/{roleId}/{oracleUser}/{actor}")
+    public Map<String, Object> revokeFromDbUser(
+            @PathVariable Long roleId,
+            @PathVariable String oracleUser,
             @PathVariable Long actor,
             HttpServletRequest req
     ) {
 
         Map<String, Object> role = db.one(
-                "SELECT role_name FROM APP_ROLES WHERE role_id = ?",
-                roleId
-        );
+                "SELECT role_name FROM APP_ROLES WHERE role_id = ?", roleId);
 
-        Map<String, Object> user = db.one(
-                "SELECT oracle_username, username FROM APP_USERS WHERE user_id = ?",
-                userId
-        );
+        if (role == null) throw new RuntimeException("Rol no encontrado");
 
-        String destination = user.get("ORACLE_USERNAME") != null
-                ? db.q(String.valueOf(user.get("ORACLE_USERNAME")))
-                : db.q(String.valueOf(user.get("USERNAME")));
+        String roleName = db.q(String.valueOf(role.get("ROLE_NAME")));
+        String safeUser = db.q(oracleUser);
 
-        String sql = "REVOKE " + db.q(String.valueOf(role.get("ROLE_NAME"))) +
-                " FROM " + destination;
+        String sql = "REVOKE " + roleName + " FROM " + safeUser;
 
-        db.update(
-                "DELETE FROM USER_ROLES WHERE user_id = ? AND role_id = ?",
-                userId,
-                roleId
-        );
-
-        db.update("""
-                INSERT INTO SQL_SCRIPTS(
-                    generated_by,
-                    script_type,
-                    script_content,
-                    description
-                )
-                VALUES(?,?,?,?)
-                """,
-                actor,
-                "REVOKE",
-                sql,
-                "Revocar rol a usuario"
-        );
-
-        db.audit(
-                actor,
-                "REVOKE_ROLE",
-                "ROLE",
+        db.executeDCL(
+                sql, "REVOKE",
+                actor, "REVOKE", "ROLE",
                 roleId,
-                "USER_ID=" + userId + " ROLE_ID=" + roleId,
-                sql,
-                req.getRemoteAddr(),
-                "OK",
-                null
+                "ROLE=" + roleName + " USER=" + safeUser,
+                "REVOKE rol " + roleName + " de " + safeUser,
+                req.getRemoteAddr()
         );
 
-        return Map.of(
-                "message", "Rol revocado",
-                "sql", sql
-        );
+        return Map.of("message", "Rol revocado del usuario Oracle", "sql", sql);
+    }
+
+    /** Quién tiene este rol concedido en Oracle. */
+    @GetMapping("/{id}/grantees")
+    public List<Map<String, Object>> grantees(@PathVariable Long id) {
+
+        Map<String, Object> role = db.one(
+                "SELECT role_name FROM APP_ROLES WHERE role_id = ?", id);
+
+        if (role == null) return List.of();
+
+        String roleName = db.q(String.valueOf(role.get("ROLE_NAME")));
+
+        return db.query("""
+                SELECT grantee, granted_role, admin_option, default_role
+                FROM DBA_ROLE_PRIVS
+                WHERE granted_role = ?
+                ORDER BY grantee
+                """, roleName);
     }
 }

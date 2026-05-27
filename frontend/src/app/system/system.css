@@ -1,0 +1,4 @@
+.card { border-radius: 10px; }
+.card-header { font-size: 1rem; }
+pre { max-height: 200px; overflow: auto; border-radius: 6px; }
+.sticky-top { top: 0; z-index: 1; }

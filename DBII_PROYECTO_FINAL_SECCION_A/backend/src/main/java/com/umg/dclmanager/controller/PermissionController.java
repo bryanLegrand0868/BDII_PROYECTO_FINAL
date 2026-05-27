@@ -35,13 +35,9 @@ public class PermissionController {
                 "PERMISSION_ID",
                 """
                 INSERT INTO APP_PERMISSIONS(
-                    object_name,
-                    object_type,
-                    privilege_type,
-                    schema_name,
-                    description
-                )
-                VALUES(?,?,?,?,?)
+                    object_name, object_type, privilege_type,
+                    schema_name, description
+                ) VALUES(?,?,?,?,?)
                 """,
                 db.q(r.objectName()),
                 db.q(r.objectType()),
@@ -50,33 +46,21 @@ public class PermissionController {
                 r.description()
         );
 
-        return Map.of(
-                "message", "Permiso creado",
-                "permissionId", id
-        );
+        return Map.of("message", "Permiso creado en catálogo", "permissionId", id);
     }
 
     @PutMapping("/{id}")
-    public Map<String, Object> update(
-            @PathVariable Long id,
-            @RequestBody PermissionReq r
-    ) {
+    public Map<String, Object> update(@PathVariable Long id, @RequestBody PermissionReq r) {
 
         db.update("""
                 UPDATE APP_PERMISSIONS
-                SET object_name = ?,
-                    object_type = ?,
-                    privilege_type = ?,
-                    schema_name = ?,
-                    description = ?
+                SET object_name = ?, object_type = ?, privilege_type = ?,
+                    schema_name = ?, description = ?
                 WHERE permission_id = ?
                 """,
-                db.q(r.objectName()),
-                db.q(r.objectType()),
-                db.q(r.privilegeType()),
-                db.q(r.schemaName()),
-                r.description(),
-                id
+                db.q(r.objectName()), db.q(r.objectType()),
+                db.q(r.privilegeType()), db.q(r.schemaName()),
+                r.description(), id
         );
 
         return Map.of("message", "Permiso actualizado");
@@ -84,93 +68,68 @@ public class PermissionController {
 
     @DeleteMapping("/{id}")
     public Map<String, Object> delete(@PathVariable Long id) {
-
         db.update("DELETE FROM APP_PERMISSIONS WHERE permission_id = ?", id);
-
-        return Map.of("message", "Permiso eliminado");
+        return Map.of("message", "Permiso eliminado del catálogo");
     }
 
-@GetMapping("/role/{roleId}")
-public List<Map<String, Object>> getRolePermissions(@PathVariable Long roleId) {
-    return db.query("""
-        SELECT p.PERMISSION_ID, p.OBJECT_NAME, p.OBJECT_TYPE, 
-               p.PRIVILEGE_TYPE, p.SCHEMA_NAME, rp.GRANT_OPTION,
-               p.DESCRIPTION
-        FROM ROLE_PERMISSIONS rp
-        JOIN APP_PERMISSIONS p ON p.PERMISSION_ID = rp.PERMISSION_ID
-        WHERE rp.ROLE_ID = ?
-        ORDER BY p.PERMISSION_ID
-        """, roleId);
-}
+    @GetMapping("/role/{roleId}")
+    public List<Map<String, Object>> getRolePermissions(@PathVariable Long roleId) {
+        return db.query("""
+                SELECT p.PERMISSION_ID, p.OBJECT_NAME, p.OBJECT_TYPE,
+                       p.PRIVILEGE_TYPE, p.SCHEMA_NAME, rp.GRANT_OPTION,
+                       p.DESCRIPTION
+                FROM ROLE_PERMISSIONS rp
+                JOIN APP_PERMISSIONS p ON p.PERMISSION_ID = rp.PERMISSION_ID
+                WHERE rp.ROLE_ID = ?
+                ORDER BY p.PERMISSION_ID
+                """, roleId);
+    }
 
-
+    /** GRANT <priv> ON <schema>.<obj> TO <role> — ejecutado en vivo. */
     @PostMapping("/grant-role")
     public Map<String, Object> grantRole(
             @RequestBody GrantRolePermReq r,
             HttpServletRequest req
     ) {
 
-        db.update("""
-                INSERT INTO ROLE_PERMISSIONS(
-                    role_id,
-                    permission_id,
-                    grant_option,
-                    granted_by
-                )
-                VALUES(?,?,?,?)
-                """,
-                r.roleId(),
-                r.permissionId(),
-                val(r.grantOption()),
-                r.grantedBy()
-        );
-
         Map<String, Object> role = db.one(
-                "SELECT role_name FROM APP_ROLES WHERE role_id = ?",
-                r.roleId()
-        );
-
+                "SELECT role_name FROM APP_ROLES WHERE role_id = ?", r.roleId());
         Map<String, Object> p = db.one(
-                "SELECT * FROM APP_PERMISSIONS WHERE permission_id = ?",
-                r.permissionId()
-        );
+                "SELECT * FROM APP_PERMISSIONS WHERE permission_id = ?", r.permissionId());
 
-        String sql = "GRANT " + p.get("PRIVILEGE_TYPE") +
-                " ON " + p.get("SCHEMA_NAME") + "." + p.get("OBJECT_NAME") +
-                " TO " + role.get("ROLE_NAME") +
-                ("S".equals(val(r.grantOption())) ? " WITH GRANT OPTION" : "");
+        if (role == null || p == null) {
+            throw new RuntimeException("Rol o permiso no encontrado");
+        }
 
-        db.update("""
-                INSERT INTO SQL_SCRIPTS(
-                    generated_by,
-                    script_type,
-                    script_content,
-                    description
-                )
-                VALUES(?,?,?,?)
-                """,
-                r.grantedBy(),
-                "GRANT",
-                sql,
-                "Permiso a rol"
-        );
+        boolean withGrant = "S".equalsIgnoreCase(val(r.grantOption()));
+        String sql = "GRANT " + db.q(String.valueOf(p.get("PRIVILEGE_TYPE"))) +
+                " ON " + db.q(String.valueOf(p.get("SCHEMA_NAME"))) +
+                "." + db.q(String.valueOf(p.get("OBJECT_NAME"))) +
+                " TO " + db.q(String.valueOf(role.get("ROLE_NAME"))) +
+                (withGrant ? " WITH GRANT OPTION" : "");
 
-        db.audit(
-                r.grantedBy(),
-                "GRANT",
-                "PERMISSION",
+        db.executeDCL(
+                sql, "GRANT",
+                db.valActor(r.grantedBy()),
+                "GRANT", "PERMISSION",
                 r.permissionId(),
                 "ROLE_ID=" + r.roleId(),
-                sql,
-                req.getRemoteAddr(),
-                "OK",
-                null
+                "GRANT a rol", req.getRemoteAddr()
         );
 
-        return Map.of(
-                "message", "Permiso asignado a rol",
-                "sql", sql
+        db.update("""
+                MERGE INTO ROLE_PERMISSIONS rp
+                USING (SELECT ? AS rid, ? AS pid FROM dual) src
+                ON (rp.role_id = src.rid AND rp.permission_id = src.pid)
+                WHEN NOT MATCHED THEN INSERT(
+                    role_id, permission_id, grant_option, granted_by
+                ) VALUES(src.rid, src.pid, ?, ?)
+                """,
+                r.roleId(), r.permissionId(),
+                val(r.grantOption()), db.valActor(r.grantedBy())
         );
+
+        return Map.of("message", "Permiso GRANT aplicado en Oracle", "sql", sql);
     }
 
     @DeleteMapping("/grant-role/{roleId}/{permissionId}/{actor}")
@@ -182,58 +141,31 @@ public List<Map<String, Object>> getRolePermissions(@PathVariable Long roleId) {
     ) {
 
         Map<String, Object> role = db.one(
-                "SELECT role_name FROM APP_ROLES WHERE role_id = ?",
-                roleId
-        );
-
+                "SELECT role_name FROM APP_ROLES WHERE role_id = ?", roleId);
         Map<String, Object> p = db.one(
-                "SELECT * FROM APP_PERMISSIONS WHERE permission_id = ?",
-                permissionId
+                "SELECT * FROM APP_PERMISSIONS WHERE permission_id = ?", permissionId);
+
+        if (role == null || p == null) throw new RuntimeException("Rol o permiso no encontrado");
+
+        String sql = "REVOKE " + db.q(String.valueOf(p.get("PRIVILEGE_TYPE"))) +
+                " ON " + db.q(String.valueOf(p.get("SCHEMA_NAME"))) +
+                "." + db.q(String.valueOf(p.get("OBJECT_NAME"))) +
+                " FROM " + db.q(String.valueOf(role.get("ROLE_NAME")));
+
+        db.executeDCL(
+                sql, "REVOKE",
+                actor, "REVOKE", "PERMISSION",
+                permissionId, "ROLE_ID=" + roleId,
+                "REVOKE a rol", req.getRemoteAddr()
         );
 
-        String sql = "REVOKE " + p.get("PRIVILEGE_TYPE") +
-                " ON " + p.get("SCHEMA_NAME") + "." + p.get("OBJECT_NAME") +
-                " FROM " + role.get("ROLE_NAME");
+        db.update("DELETE FROM ROLE_PERMISSIONS WHERE role_id = ? AND permission_id = ?",
+                roleId, permissionId);
 
-        db.update(
-                "DELETE FROM ROLE_PERMISSIONS WHERE role_id = ? AND permission_id = ?",
-                roleId,
-                permissionId
-        );
-
-        db.update("""
-                INSERT INTO SQL_SCRIPTS(
-                    generated_by,
-                    script_type,
-                    script_content,
-                    description
-                )
-                VALUES(?,?,?,?)
-                """,
-                actor,
-                "REVOKE",
-                sql,
-                "Revocar permiso a rol"
-        );
-
-        db.audit(
-                actor,
-                "REVOKE",
-                "PERMISSION",
-                permissionId,
-                "ROLE_ID=" + roleId,
-                sql,
-                req.getRemoteAddr(),
-                "OK",
-                null
-        );
-
-        return Map.of(
-                "message", "Permiso revocado a rol",
-                "sql", sql
-        );
+        return Map.of("message", "Permiso REVOKE aplicado en Oracle", "sql", sql);
     }
 
+    /** GRANT directo sobre un usuario Oracle real. */
     @PostMapping("/grant-user")
     public Map<String, Object> grantUser(
             @RequestBody GrantUserPermReq r,
@@ -242,129 +174,78 @@ public List<Map<String, Object>> getRolePermissions(@PathVariable Long roleId) {
 
         String oracleUser = db.q(r.oracleUsername());
 
-        db.update("""
-                INSERT INTO USER_PERMISSIONS(
-                    user_id,
-                    permission_id,
-                    grant_option,
-                    granted_by,
-                    oracle_username
-                )
-                VALUES(?,?,?,?,?)
-                """,
-                r.userId(),
-                r.permissionId(),
-                val(r.grantOption()),
-                r.grantedBy(),
-                oracleUser
-        );
-
         Map<String, Object> p = db.one(
-                "SELECT * FROM APP_PERMISSIONS WHERE permission_id = ?",
-                r.permissionId()
-        );
+                "SELECT * FROM APP_PERMISSIONS WHERE permission_id = ?", r.permissionId());
 
-        String sql = "GRANT " + p.get("PRIVILEGE_TYPE") +
-                " ON " + p.get("SCHEMA_NAME") + "." + p.get("OBJECT_NAME") +
+        if (p == null) throw new RuntimeException("Permiso no encontrado");
+
+        boolean withGrant = "S".equalsIgnoreCase(val(r.grantOption()));
+        String sql = "GRANT " + db.q(String.valueOf(p.get("PRIVILEGE_TYPE"))) +
+                " ON " + db.q(String.valueOf(p.get("SCHEMA_NAME"))) +
+                "." + db.q(String.valueOf(p.get("OBJECT_NAME"))) +
                 " TO " + oracleUser +
-                ("S".equals(val(r.grantOption())) ? " WITH GRANT OPTION" : "");
+                (withGrant ? " WITH GRANT OPTION" : "");
 
-        db.update("""
-                INSERT INTO SQL_SCRIPTS(
-                    generated_by,
-                    script_type,
-                    script_content,
-                    description
-                )
-                VALUES(?,?,?,?)
-                """,
-                r.grantedBy(),
-                "GRANT",
-                sql,
-                "Permiso directo a usuario"
-        );
-
-        db.audit(
-                r.grantedBy(),
-                "GRANT",
-                "PERMISSION",
+        db.executeDCL(
+                sql, "GRANT",
+                db.valActor(r.grantedBy()),
+                "GRANT", "PERMISSION",
                 r.permissionId(),
-                "USER_ID=" + r.userId(),
-                sql,
-                req.getRemoteAddr(),
-                "OK",
-                null
+                "USER_ID=" + r.userId() + " ORACLE_USER=" + oracleUser,
+                "GRANT directo a usuario Oracle", req.getRemoteAddr()
         );
 
-        return Map.of(
-                "message", "Permiso directo asignado",
-                "sql", sql
-        );
+        if (r.userId() != null) {
+            db.update("""
+                    MERGE INTO USER_PERMISSIONS up
+                    USING (SELECT ? AS uid, ? AS pid FROM dual) src
+                    ON (up.user_id = src.uid AND up.permission_id = src.pid)
+                    WHEN NOT MATCHED THEN INSERT(
+                        user_id, permission_id, grant_option, granted_by, oracle_username
+                    ) VALUES(src.uid, src.pid, ?, ?, ?)
+                    """,
+                    r.userId(), r.permissionId(),
+                    val(r.grantOption()), db.valActor(r.grantedBy()), oracleUser
+            );
+        }
+
+        return Map.of("message", "GRANT directo aplicado en Oracle", "sql", sql);
     }
 
-    @DeleteMapping("/grant-user/{userId}/{permissionId}/{actor}")
+    @DeleteMapping("/grant-user/{oracleUser}/{permissionId}/{actor}")
     public Map<String, Object> revokeUser(
-            @PathVariable Long userId,
+            @PathVariable String oracleUser,
             @PathVariable Long permissionId,
             @PathVariable Long actor,
             HttpServletRequest req
     ) {
 
-        Map<String, Object> up = db.one("""
-                SELECT oracle_username
-                FROM USER_PERMISSIONS
-                WHERE user_id = ? AND permission_id = ?
-                """,
-                userId,
-                permissionId
-        );
+        String safeUser = db.q(oracleUser);
 
         Map<String, Object> p = db.one(
-                "SELECT * FROM APP_PERMISSIONS WHERE permission_id = ?",
-                permissionId
-        );
+                "SELECT * FROM APP_PERMISSIONS WHERE permission_id = ?", permissionId);
 
-        String sql = "REVOKE " + p.get("PRIVILEGE_TYPE") +
-                " ON " + p.get("SCHEMA_NAME") + "." + p.get("OBJECT_NAME") +
-                " FROM " + up.get("ORACLE_USERNAME");
+        if (p == null) throw new RuntimeException("Permiso no encontrado");
 
-        db.update(
-                "DELETE FROM USER_PERMISSIONS WHERE user_id = ? AND permission_id = ?",
-                userId,
-                permissionId
+        String sql = "REVOKE " + db.q(String.valueOf(p.get("PRIVILEGE_TYPE"))) +
+                " ON " + db.q(String.valueOf(p.get("SCHEMA_NAME"))) +
+                "." + db.q(String.valueOf(p.get("OBJECT_NAME"))) +
+                " FROM " + safeUser;
+
+        db.executeDCL(
+                sql, "REVOKE",
+                actor, "REVOKE", "PERMISSION",
+                permissionId,
+                "ORACLE_USER=" + safeUser,
+                "REVOKE directo a usuario Oracle", req.getRemoteAddr()
         );
 
         db.update("""
-                INSERT INTO SQL_SCRIPTS(
-                    generated_by,
-                    script_type,
-                    script_content,
-                    description
-                )
-                VALUES(?,?,?,?)
-                """,
-                actor,
-                "REVOKE",
-                sql,
-                "Revocar permiso directo"
-        );
+                DELETE FROM USER_PERMISSIONS
+                WHERE oracle_username = ? AND permission_id = ?
+                """, safeUser, permissionId);
 
-        db.audit(
-                actor,
-                "REVOKE",
-                "PERMISSION",
-                permissionId,
-                "USER_ID=" + userId,
-                sql,
-                req.getRemoteAddr(),
-                "OK",
-                null
-        );
-
-        return Map.of(
-                "message", "Permiso directo revocado",
-                "sql", sql
-        );
+        return Map.of("message", "REVOKE directo aplicado en Oracle", "sql", sql);
     }
 
     private String val(String value) {
