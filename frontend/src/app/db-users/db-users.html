@@ -70,6 +70,9 @@
                 <button class="btn btn-sm btn-outline-primary me-1" (click)="openGrantRole(u)" title="Asignar Rol">
                   <i class="bi bi-tags"></i>
                 </button>
+                <button class="btn btn-sm btn-outline-success me-1" (click)="openGrantPerm(u)" title="Permiso directo de objeto">
+                  <i class="bi bi-key-fill"></i>
+                </button>
                 <button class="btn btn-sm btn-outline-warning me-1" (click)="openPwd(u)" title="Cambiar password">
                   <i class="bi bi-key"></i>
                 </button>
@@ -242,12 +245,57 @@
         </select>
         <div class="form-check mt-3">
           <input type="checkbox" class="form-check-input" id="adminOpt" [(ngModel)]="grantRoleAdmin">
-          <label for="adminOpt" class="form-check-label">WITH ADMIN OPTION</label>
+          <label for="adminOpt" class="form-check-label">
+            WITH ADMIN OPTION
+            <small class="text-muted d-block">Permite que este usuario re-otorgue el rol a otros</small>
+          </label>
         </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" (click)="showGrantRole = false">Cancelar</button>
         <button class="btn btn-primary" (click)="grantRole()">GRANT</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Permiso directo de objeto -->
+<div class="modal" [style.display]="showGrantPerm ? 'block' : 'none'"
+     style="background: rgba(0,0,0,0.5);" *ngIf="showGrantPerm">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title">
+          <i class="bi bi-key-fill me-2"></i>Permiso directo a {{ detailsUser?.USERNAME }}
+        </h5>
+        <button class="btn-close btn-close-white" (click)="showGrantPerm = false"></button>
+      </div>
+      <div class="modal-body">
+        <label>Permiso (objeto + privilegio)</label>
+        <select class="form-select" [(ngModel)]="grantPermSelected">
+          <option [ngValue]="null">-- Seleccionar --</option>
+          <option *ngFor="let p of allPermissions" [ngValue]="p.PERMISSION_ID">
+            {{ permLabel(p) }}
+          </option>
+        </select>
+        <div class="form-check mt-3">
+          <input type="checkbox" class="form-check-input" id="permGrantOpt" [(ngModel)]="grantPermOption">
+          <label for="permGrantOpt" class="form-check-label">
+            WITH GRANT OPTION
+            <small class="text-muted d-block">
+              Permite que este usuario re-otorgue el permiso de objeto a otros.
+              (Válido porque es a un usuario, no a un rol.)
+            </small>
+          </label>
+        </div>
+        <div class="alert alert-info small mt-3 mb-0">
+          <i class="bi bi-info-circle"></i>
+          Ejecuta: <code>GRANT &lt;priv&gt; ON &lt;esquema&gt;.&lt;obj&gt; TO {{ detailsUser?.USERNAME }}</code>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="showGrantPerm = false">Cancelar</button>
+        <button class="btn btn-success" (click)="grantDirectPerm()">GRANT</button>
       </div>
     </div>
   </div>

@@ -37,9 +37,15 @@ export class DbUsers implements OnInit {
   grantRoleSelected: number | null = null;
   grantRoleAdmin = false;
 
+  // Permiso directo de objeto a usuario (GRANT ... ON HR.x TO usuario)
+  showGrantPerm = false;
+  allPermissions: any[] = [];
+  grantPermSelected: number | null = null;
+  grantPermOption = false;
+
   constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() { this.load(); this.loadRoles(); }
+  ngOnInit() { this.load(); this.loadRoles(); this.loadPermissions(); }
 
   load() {
     this.loading = true;
@@ -54,6 +60,16 @@ export class DbUsers implements OnInit {
     this.http.get('http://localhost:8080/api/roles').subscribe({
       next: (d: any) => { this.allRoles = d || []; this.cdr.detectChanges(); }
     });
+  }
+
+  loadPermissions() {
+    this.http.get('http://localhost:8080/api/permissions').subscribe({
+      next: (d: any) => { this.allPermissions = d || []; this.cdr.detectChanges(); }
+    });
+  }
+
+  permLabel(p: any): string {
+    return `${p.SCHEMA_NAME}.${p.OBJECT_NAME} — ${p.PRIVILEGE_TYPE}`;
   }
 
   filtered() {
@@ -152,6 +168,29 @@ export class DbUsers implements OnInit {
     };
     this.http.post('http://localhost:8080/api/roles/grant-to-db-user', body).subscribe({
       next: (r: any) => { this.handleResult(r, 'Rol concedido'); this.showGrantRole = false; this.cdr.detectChanges(); },
+      error: (e) => this.handleError(e)
+    });
+  }
+
+  // ---- Permiso directo de objeto a usuario ----
+  openGrantPerm(u: any) {
+    this.detailsUser = u;
+    this.grantPermSelected = null;
+    this.grantPermOption = false;
+    this.showGrantPerm = true;
+    this.cdr.detectChanges();
+  }
+  grantDirectPerm() {
+    if (!this.grantPermSelected) return;
+    const body = {
+      userId: null,
+      permissionId: this.grantPermSelected,
+      grantOption: this.grantPermOption ? 'S' : 'N',
+      grantedBy: this.actorId(),
+      oracleUsername: this.detailsUser.USERNAME
+    };
+    this.http.post('http://localhost:8080/api/permissions/grant-user', body).subscribe({
+      next: (r: any) => { this.handleResult(r, 'Permiso directo concedido'); this.showGrantPerm = false; this.cdr.detectChanges(); },
       error: (e) => this.handleError(e)
     });
   }

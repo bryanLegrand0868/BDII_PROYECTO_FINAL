@@ -134,7 +134,11 @@ export class Permissions implements OnInit {
           this.allPermissions = [...this.allPermissions, perm]; // actualizar lista local
           this.assignPermissionToRole(perm.permissionId, actorId);
         },
-        error: (error) => console.error('Error al crear permiso:', error)
+        error: (error) => {
+          console.error('Error al crear permiso:', error);
+          const msg = error.error?.error || error.message || 'Error desconocido';
+          alert('❌ ' + msg);
+        }
       });
     }
   }
@@ -156,7 +160,8 @@ export class Permissions implements OnInit {
       },
       error: (error) => {
         console.error('Error al asignar:', error);
-        alert('❌ Error: ese permiso ya está asignado a este rol');
+        const msg = error.error?.error || error.message || 'Error desconocido';
+        alert('❌ ' + msg);
       }
     });
   }

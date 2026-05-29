@@ -174,12 +174,10 @@
             <option value="FUNCTION">📐 FUNCTION</option>
           </select>
         </div>
-        <div class="form-check">
-          <input class="form-check-input" type="checkbox" [(ngModel)]="grantData.grantOption" id="grantOption">
-          <label class="form-check-label" for="grantOption">
-            <strong>WITH GRANT OPTION</strong>
-            <small class="text-muted d-block">Permite que el rol pueda otorgar este permiso a otros</small>
-          </label>
+        <div class="alert alert-warning small mb-0">
+          <i class="bi bi-info-circle me-1"></i>
+          <strong>WITH GRANT OPTION</strong> no aplica al otorgar a un <strong>rol</strong>
+          (Oracle lo prohíbe: ORA-01931). Solo es válido en GRANT directo a un usuario.
         </div>
       </div>
       <div class="modal-footer modal-footer-custom">
